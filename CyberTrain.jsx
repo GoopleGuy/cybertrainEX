@@ -299,6 +299,12 @@ export default function CyberTrain() {
     <div className={"ct-root" + (active && rest ? " resting" : "")}>
       <style>{CSS + EX_THEME}</style>
       <div className="scanlines" />
+      <svg className="ambient-art" viewBox="0 0 620 1000" preserveAspectRatio="none" aria-hidden="true">
+        <path className="ambient-rail" d="M604 130v125l-6 8v150m0 30v100M16 590v58l8 10v96"/>
+        <path className="ambient-seam" d="M620 708h-36l-72 72H340l-52 52H0M620 721h-31l-72 72H345"/>
+        <path className="ambient-corner" d="M522 30h54l28 28v28M534 35h40l24 24M16 874v20h44"/>
+        <path className="ambient-ticks" d="M604 282h-5m5 8h-5m5 8h-5m5 8h-5M18 785h4m-4 8h4m-4 8h4"/>
+      </svg>
       {flash && <div className="flash">{flash}</div>}
 
       {/* HEADER */}
