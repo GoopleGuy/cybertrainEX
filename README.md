@@ -9,7 +9,7 @@ Derived from [GoopleGuy/cybertrain](https://github.com/GoopleGuy/cybertrain) at 
 ## Changes
 
 - Original neon yellow, cyan and magenta lighting, compact proportions, angled panels and locally bundled Rajdhani / Share Tech Mono fonts, including offline.
-- A single app frame connects the header, scrolling content, rest timer and five-tab dock. Animated navigation, smooth exercise expansion, retained panel inputs and per-tab scroll positions keep interactions continuous. Keyboard focus, reduced motion and browser zoom are supported.
+- Phone-first typography and spacing sit on a true-black OLED canvas with restrained edge details. Five floating icon buttons replace the full-width navigation bar, and an inset timer uses a thin progress light. Both reserve space so they never cover workout controls. Animated navigation, smooth exercise expansion, retained panel inputs and per-tab scroll positions keep interactions continuous. Keyboard focus, reduced motion and browser zoom are supported.
 - Collapsible program tuning groups rest, sets and rep targets without crowding the exercise list.
 - **141 exercises**, expanded from 58: 31 rack/barbell, 11 open hex bar, 44 Arcadia, 14 Hyper Pro and 41 dumbbell movements. Original exercise IDs and the three-day program remain compatible.
 - Equipment and muscle filters, text search, setup guidance and load conventions.
