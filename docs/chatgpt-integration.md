@@ -6,7 +6,15 @@ Research checked September 12, 2026. Availability can differ by plan, workspace 
 
 COACH builds a brief from a selected exercise or program, optional recent logs and active sets, and local progression targets. Copy it into ChatGPT yourself. This uses the conversation you open under your own account, within its limits. The PWA has no AI API traffic or credentials. Responses stay in ChatGPT; apply changes manually in CyberTrainEX.
 
-## Direct embedding with subscription usage
+## Native coach with subscription access: Codex App Server
+
+Follow-up research found a supported integration missed in the initial assessment: [Codex App Server](https://learn.chatgpt.com/docs/app-server) is designed to embed Codex conversations in another product and supports managed ChatGPT sign-in. [Authentication documentation](https://learn.chatgpt.com/docs/auth) distinguishes subscription access from API-key billing.
+
+A native CyberTrainEX coach can therefore use a private companion service running Codex App Server, signed in with the user's ChatGPT account, while the installable phone PWA stays on GitHub Pages. The PWA can pass selected exercise/session context automatically and display replies in-app. This uses Codex capabilities and account limits, rather than embedding the ChatGPT website or calling a general ChatGPT subscription API.
+
+The companion must run on an available PC/server and be reachable from the phone through authenticated HTTPS. GitHub Pages cannot run it. Keep account credentials on the companion; expose only coaching operations, not unrestricted agent/file/shell access. Validate structured progression proposals and let the user apply them in-app. No copying/pasting is required by this design. It is a proposed implementation, not connected functionality in the current deployment. The next decision is home-PC hosting versus an independently hosted companion.
+
+## Static-only embedding
 
 The official documentation reviewed does not establish a general third-party browser embed or model endpoint billed to a personal ChatGPT subscription. OpenAI's documented API integration uses an API key and API credits/billing: [Developer quickstart](https://developers.openai.com/api/docs/quickstart). Do not treat a ChatGPT session cookie or Codex login token as a substitute API key. This project collects neither.
 
@@ -24,4 +32,4 @@ Proposed implementation:
 
 Hosting, database and maintenance may still have costs even if the integration makes no separate OpenAI API calls. No hosted service, plugin registration or automatic program write was created in this iteration. A local companion is another possible implementation but needs a supported local tool runtime; the static phone PWA cannot invoke desktop Codex directly.
 
-Use the shipped handoff now. If automatic access to training data is essential, build and connect the authenticated ChatGPT plugin next. Use a separately billed API backend if a chatbot must run directly inside the standalone PWA.
+The shipped copy/paste handoff was rejected as unsuitable. The native replacement should use the Codex companion described above, subject to the hosting decision. A ChatGPT plugin is a different option that runs the experience inside ChatGPT. A separately billed API backend remains an option only if subscription-based Codex integration is not wanted.

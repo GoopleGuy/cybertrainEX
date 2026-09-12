@@ -2,6 +2,8 @@
 
 A personal strength-training PWA with Cyberpunk 2077-inspired menus, offline workout tracking, and a ChatGPT handoff using your own account.
 
+**Live app:** [Open CyberTrainEX](https://goopleguy.github.io/cybertrainEX/). Install it from your phone browser using Add to Home Screen / Install App. GitHub Pages is enabled and future pushes deploy automatically.
+
 Derived from [GoopleGuy/cybertrain](https://github.com/GoopleGuy/cybertrain) at `91c8853e0dc520583eb72ffa66c4603b552ccb75`. This separate same-owner repository retains the original Git history; it is not a GitHub fork-network entry.
 
 ## Changes
