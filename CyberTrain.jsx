@@ -2,6 +2,7 @@ import { LIB, LIB_MAP, EQUIPMENT, guideFor, filterExercises } from "./library.mj
 import { suggestNext, epley } from "./progression.mjs";
 import { EX_THEME, FONT_FACES } from "./theme.mjs";
 import NavIcon from "./NavIcon.jsx";
+import { restAudio } from "./rest-audio.mjs";
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 
 /* ============================================================
@@ -117,6 +118,7 @@ export default function CyberTrain() {
   const [editDay, setEditDay] = useState("A");
   const [buildFilter, setBuildFilter] = useState("ALL");
   const [rest, setRest] = useState(null); // {exId, total, endsAt, done}
+  const [restSound, setRestSound] = useState(() => { try { return localStorage.getItem('cybertrain-ex-rest-sound') !== 'off'; } catch { return true; } });
   const [, setTick] = useState(0);
   const doneRef = useRef(false);
   const mainRef = useRef(null);
@@ -174,6 +176,17 @@ export default function CyberTrain() {
 
   /* ---- rest timer ---- */
   useEffect(() => {
+    if (rest && !rest.done && restSound) restAudio.schedule(Math.max(0, (rest.endsAt - Date.now()) / 1000));
+    else if (!rest || !restSound) restAudio.cancel();
+  }, [rest?.endsAt, !!rest, restSound]);
+  useEffect(() => () => restAudio.cancel(), []);
+  const toggleRestSound = () => {
+    const next = !restSound;
+    if (next) restAudio.unlock();
+    setRestSound(next);
+    try { localStorage.setItem('cybertrain-ex-rest-sound', next ? 'on' : 'off'); } catch {}
+  };
+  useEffect(() => {
     if (!rest) return;
     doneRef.current = rest.done;
     const id = setInterval(() => {
@@ -188,7 +201,7 @@ export default function CyberTrain() {
     if (rest && rest.done) { const t = setTimeout(() => setRest(null), 6000); return () => clearTimeout(t); }
   }, [rest]);
 
-  const startRest = ex => { const s = restOf(ex, restOv); doneRef.current = false; setRest({ exId: ex.id, total: s, endsAt: Date.now() + s * 1000, done: false }); };
+  const startRest = ex => { if (restSound) restAudio.unlock(); const s = restOf(ex, restOv); doneRef.current = false; setRest({ exId: ex.id, total: s, endsAt: Date.now() + s * 1000, done: false }); };
   const bumpRest = sec => setRest(r => { if (!r) return r; const base = Math.max(Date.now(), r.endsAt); return { ...r, endsAt: Math.max(Date.now() + 1000, base + sec * 1000), done: false }; });
   const skipRest = () => { buzz(HAP.tap); setRest(null); };
 
@@ -558,11 +571,17 @@ export default function CyberTrain() {
         const ex = LIB_MAP[rest.exId];
         return (
           <div className={"rest-bar" + (rest.done ? " done" : "")}>
+            {rest.done && <div className="rest-finale" role="status" aria-live="polite">
+              <div className="rest-sigil" aria-hidden="true"><svg viewBox="0 0 64 64"><path className="sigil-ring" d="M20 4h24l16 16v24L44 60H20L4 44V20Z"/><path className="sigil-inner" d="m32 12 20 20-20 20-20-20Z"/><path className="sigil-check" d="m22 32 7 7 15-17"/></svg></div>
+              <div><span className="rest-finale-code">RECOVERY COMPLETE</span><strong>READY FOR NEXT SET</strong><span className="rest-finale-sub">NEURAL LINK // RE-ENGAGED</span></div>
+              <div className="rest-sweep" aria-hidden="true"/>
+            </div>}
             <div className="rest-fill" style={{ width: rest.done ? "100%" : pct + "%" }} />
             <div className="rest-inner">
               <div className="rest-info">
                 <div className="rest-label">{rest.done ? "REST COMPLETE" : "RESTING"}</div>
                 <div className="rest-ex">{ex ? ex.name : ""}</div>
+                <button className="rest-sound" aria-label="Rest alert sound" aria-pressed={restSound} onClick={toggleRestSound}>{restSound ? '♪ SOUND ON' : '♪ MUTED'}</button>
               </div>
               <div className="rest-clock">{rest.done ? "READY" : fmtClock(remaining / 1000)}</div>
               <div className="rest-ctrls">

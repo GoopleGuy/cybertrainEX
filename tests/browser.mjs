@@ -21,6 +21,17 @@ try{
  await nav('TRAIN').click();await page.getByRole('button',{name:'JACK IN',exact:false}).click();
  const logger=page.locator('.ex-card').first();await logger.locator('input').nth(0).fill('100');await logger.locator('input').nth(1).fill('6');await logger.locator('input').nth(2).fill('2');await logger.locator('.ex-head').click();await logger.locator('.ex-head').click();assert.equal(await logger.locator('input').nth(0).inputValue(),'100');await logger.getByRole('button',{name:'LOG'}).click();assert.ok(await page.getByText('RESTING',{exact:true}).isVisible());
  await page.locator('.rest-bar').evaluate(el=>Promise.all(el.getAnimations().map(a=>a.finished)));const timer=await page.locator('.rest-bar').boundingBox(),dock=await page.locator('nav').boundingBox(),main=await page.locator('main').boundingBox();assert.ok(main.y+main.height<=timer.y+1);assert.ok(timer.y+timer.height<=dock.y+1);
+ await page.setViewportSize({width:320,height:640});
+ for(let i=0;i<12;i++) await page.locator('.rest-ctrls').getByRole('button',{name:'−15',exact:true}).click();
+ await page.getByText('READY FOR NEXT SET',{exact:true}).waitFor();
+ assert.equal(await page.locator('.rest-finale').count(),1);
+ assert.equal(await page.getByRole('button',{name:'Rest alert sound'}).getAttribute('aria-pressed'),'true');
+ await page.screenshot({path:resolve(out,'rest-complete-phone.png')});
+ await page.getByRole('button',{name:'Rest alert sound'}).click();
+ assert.equal(await page.evaluate(()=>localStorage.getItem('cybertrain-ex-rest-sound')),'off');
+ await page.emulateMedia({reducedMotion:'reduce'});
+ assert.equal(await page.locator('.sigil-ring').evaluate(el=>getComputedStyle(el).animationName),'none');
+ await page.emulateMedia({reducedMotion:'no-preference'});
  await page.getByRole('button',{name:'END SESSION & ARCHIVE',exact:false}).click();
  await page.reload({waitUntil:'domcontentloaded'});await nav('DATA').click();assert.equal(await page.locator('.stat-card').filter({hasText:'SESSIONS'}).locator('.stat-n').textContent(),'1');
  await page.getByRole('button',{name:'EXPORT BACKUP'}).click();const backup=await page.evaluate(()=>navigator.clipboard.readText());assert.equal(JSON.parse(backup).logs.length,1);
