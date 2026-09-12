@@ -19,8 +19,31 @@
 <div id="root"></div>
 <script src="app.js"></script>
 <script>
-if ("serviceWorker" in navigator && location.protocol === "https:") {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && window.isSecureContext) {
+  let hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) { hadController = true; return; }
+    if (document.getElementById("app-update")) return;
+    const notice = document.createElement("button");
+    notice.id = "app-update";
+    notice.type = "button";
+    notice.textContent = "Update ready · Tap to refresh";
+    notice.style.cssText = "position:fixed;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:1000;background:#fcee0a;color:#000;border:0;border-radius:20px;padding:12px 18px;font:600 14px sans-serif;box-shadow:0 4px 24px #000;max-width:90vw";
+    notice.onclick = () => {
+      if (document.documentElement.dataset.sessionActive === "true") {
+        notice.textContent = "Archive your session before refreshing";
+        return;
+      }
+      location.reload();
+    };
+    document.body.append(notice);
+  });
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(reg => {
+    reg.update().catch(() => {});
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) reg.update().catch(() => {});
+    });
+  }).catch(() => {});
 }
 </script>
 </body>

@@ -106,6 +106,7 @@ export default function CyberTrain() {
   const [data, setData] = useState(null);
   const [day, setDay] = useState("A");
   const [active, setActive] = useState(null); // active session: {day, started, entries:{exId:[{w,r,rir}]}}
+  useEffect(() => { document.documentElement.dataset.sessionActive = String(!!active); }, [active]);
   const [openEx, setOpenEx] = useState(null);
   const [libFilter, setLibFilter] = useState("ALL");
   const [search, setSearch] = useState("");
@@ -309,24 +310,19 @@ export default function CyberTrain() {
 
       {/* HEADER */}
       <header className="hdr">
-        <div className="hdr-block" />
-        <div>
+        <div className="brand-lockup">
+          <div className="brand-kicker">NIGHT CITY / STRENGTH SYSTEM</div>
           <h1>CYBER<span>TRAIN</span><em>EX</em></h1>
-          <div className="hdr-sub">NIGHT CITY STRENGTH OS // EX</div>
         </div>
-        <div className="hdr-stat">
-          <div className="hdr-stat-n">{fmtK(metrics.totalVol)}</div>
-          <div className="hdr-stat-l">LB LIFETIME</div>
-        </div>
+        <div className="app-signature"><i/>{active ? "LIVE" : "READY"}<span>V.04</span></div>
       </header>
 
-      <div className="system-strip"><span><i/> {active ? "SESSION LIVE" : "NEURAL LINK ONLINE"}</span><span>{LIB.length} MOVEMENTS <b>//</b> 05 RIGS</span></div>
       <main className="main" ref={mainRef} id="main-content">
       <div className="tab-content" key={tab}>
         {/* ============ TRAIN ============ */}
         {tab === "TRAIN" && !active && (
           <div className="pad">
-            <div className="section-heading"><div className="sec-label">// SELECT PROTOCOL</div><span>{String(metrics.sessionCount).padStart(2,"0")} RUNS ARCHIVED</span></div>
+            <div className="session-heading"><div><div className="sec-label">YOUR TRAINING</div><h2>Choose your session.</h2></div><span>0{Object.keys(program).length}<small>PROTOCOLS</small></span></div>
             {Object.entries(program).map(([k, p]) => (
               <div key={k} className={"day-slot" + (day === k ? " selected" : "")} style={{"--dc":DAY_COLORS[k]}}><button aria-pressed={day === k} className={"day-card" + (day === k ? " sel" : "")} style={{ "--dc": DAY_COLORS[k] }} onClick={() => { buzz(HAP.tap); setDay(k); }}>
                 <div className="day-letter">{k}</div>
@@ -582,7 +578,7 @@ export default function CyberTrain() {
       {/* BOTTOM NAV */}
       <nav className="bnav" aria-label="Main navigation" style={{"--nav-index":["TRAIN","ARSENAL","BUILD","DATA","PROTOCOL"].indexOf(tab)}}><div className="nav-indicator" aria-hidden="true"/>
         {["TRAIN", "ARSENAL", "BUILD", "DATA", "PROTOCOL"].map(t => (
-          <button key={t} aria-current={tab === t ? "page" : undefined} className={"bnav-btn" + (tab === t ? " on" : "")} onClick={() => navigate(t)}>
+          <button key={t} aria-label={t} title={t} aria-current={tab === t ? "page" : undefined} className={"bnav-btn" + (tab === t ? " on" : "")} onClick={() => navigate(t)}>
             <span className="bnav-ic"><NavIcon name={t}/></span><span>{t}</span>
           </button>
         ))}
