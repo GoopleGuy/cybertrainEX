@@ -1,4 +1,4 @@
-name: Build & Deploy CyberTrain
+name: Build & Deploy CyberTrainEX
 on:
   push:
     branches: [main]
@@ -21,13 +21,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install esbuild@0.24.0 react@19 react-dom@19
+      - run: npm ci
+      - run: npm test
       - run: node build.mjs ${{ github.sha }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
+    if: vars.ENABLE_PAGES == 'true'
     needs: build
     runs-on: ubuntu-latest
     environment:

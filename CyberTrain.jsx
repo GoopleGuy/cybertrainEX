@@ -1,3 +1,7 @@
+import { LIB, LIB_MAP, EQUIPMENT, guideFor, filterExercises } from "./library.mjs";
+import { suggestNext, epley } from "./progression.mjs";
+import Coach from "./Coach.jsx";
+import { EX_THEME } from "./theme.mjs";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 /* ============================================================
@@ -9,71 +13,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 /* ---------- EXERCISE LIBRARY ---------- */
 // inc = weight increment (lb) when progression triggers
 // range = [minReps, maxReps] for double progression
-const LIB = [
-  // SQUAT RACK / BARBELL
-  { id: "back-squat", name: "Back Squat", eq: "RACK", mus: "QUADS", range: [5, 6], inc: 5, sets: 4, kind: "COMPOUND" },
-  { id: "front-squat", name: "Front Squat", eq: "RACK", mus: "QUADS", range: [5, 8], inc: 5, sets: 3, kind: "COMPOUND" },
-  { id: "paused-squat", name: "Paused Back Squat", eq: "RACK", mus: "QUADS", range: [6, 8], inc: 5, sets: 3, kind: "COMPOUND" },
-  { id: "bench", name: "Bench Press", eq: "RACK", mus: "CHEST", range: [5, 6], inc: 5, sets: 4, kind: "COMPOUND" },
-  { id: "bench-vol", name: "Bench Press — Volume", eq: "RACK", mus: "CHEST", range: [8, 10], inc: 5, sets: 3, kind: "COMPOUND" },
-  { id: "ohp", name: "Standing Overhead Press", eq: "RACK", mus: "DELTS", range: [5, 8], inc: 5, sets: 4, kind: "COMPOUND" },
-  { id: "ohp-vol", name: "Overhead Press — Volume", eq: "RACK", mus: "DELTS", range: [8, 10], inc: 5, sets: 3, kind: "COMPOUND" },
-  { id: "bb-row", name: "Barbell Row", eq: "RACK", mus: "BACK", range: [6, 10], inc: 5, sets: 3, kind: "COMPOUND" },
-  { id: "bb-rdl", name: "Barbell RDL", eq: "RACK", mus: "HAMS", range: [6, 10], inc: 10, sets: 3, kind: "COMPOUND" },
-  { id: "incline-bench", name: "Incline Bench Press", eq: "RACK", mus: "CHEST", range: [6, 10], inc: 5, sets: 3, kind: "COMPOUND" },
-  { id: "close-grip-bench", name: "Close-Grip Bench", eq: "RACK", mus: "TRICEPS", range: [6, 10], inc: 5, sets: 3, kind: "COMPOUND" },
-  { id: "hip-thrust", name: "Barbell Hip Thrust", eq: "RACK", mus: "GLUTES", range: [8, 12], inc: 10, sets: 3, kind: "COMPOUND" },
-  { id: "good-morning", name: "Good Morning", eq: "RACK", mus: "HAMS", range: [8, 10], inc: 5, sets: 3, kind: "COMPOUND" },
-  { id: "rack-pull", name: "Rack Pull", eq: "RACK", mus: "BACK", range: [5, 8], inc: 10, sets: 3, kind: "COMPOUND" },
-  { id: "bb-calf", name: "Standing Calf Raise (BB)", eq: "RACK", mus: "CALVES", range: [10, 15], inc: 10, sets: 3, kind: "ACCESSORY" },
-  // OPEN HEX BAR
-  { id: "trap-dl", name: "Trap-Bar Deadlift", eq: "HEX", mus: "HAMS", range: [4, 6], inc: 10, sets: 4, kind: "COMPOUND" },
-  { id: "trap-rdl", name: "Trap-Bar RDL", eq: "HEX", mus: "HAMS", range: [6, 10], inc: 10, sets: 3, kind: "COMPOUND" },
-  { id: "trap-carry", name: "Trap-Bar Carry", eq: "HEX", mus: "CORE", range: [30, 60], inc: 10, sets: 3, kind: "CARRY", unit: "sec" },
-  { id: "trap-shrug", name: "Trap-Bar Shrug", eq: "HEX", mus: "BACK", range: [10, 15], inc: 10, sets: 3, kind: "ACCESSORY" },
-  // ARCADIA — CABLES + PULL-UP BAR
-  { id: "pullup", name: "Pull-Up", eq: "ARCADIA", mus: "LATS", range: [5, 10], inc: 5, sets: 3, kind: "COMPOUND", bw: true },
-  { id: "chinup", name: "Chin-Up", eq: "ARCADIA", mus: "LATS", range: [5, 10], inc: 5, sets: 3, kind: "COMPOUND", bw: true },
-  { id: "hanging-leg-raise", name: "Hanging Leg Raise", eq: "ARCADIA", mus: "CORE", range: [8, 15], inc: 0, sets: 3, kind: "CORE", bw: true },
-  { id: "cable-crunch", name: "Cable Crunch", eq: "ARCADIA", mus: "CORE", range: [12, 15], inc: 5, sets: 3, kind: "CORE" },
-  { id: "rear-delt-fly", name: "Cable Rear-Delt Fly", eq: "ARCADIA", mus: "DELTS", range: [12, 20], inc: 2.5, sets: 3, kind: "ACCESSORY" },
-  { id: "lat-pulldown", name: "Kneeling Lat Pulldown", eq: "ARCADIA", mus: "LATS", range: [8, 12], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "cable-row", name: "Standing Cable Row", eq: "ARCADIA", mus: "BACK", range: [8, 12], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "seated-cable-row", name: "Seated Cable Row", eq: "ARCADIA", mus: "BACK", range: [10, 12], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "cable-chest-press", name: "Cable Chest Press", eq: "ARCADIA", mus: "CHEST", range: [8, 12], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "cable-fly", name: "Cable Fly", eq: "ARCADIA", mus: "CHEST", range: [12, 15], inc: 2.5, sets: 3, kind: "ACCESSORY" },
-  { id: "face-pull", name: "Face Pull", eq: "ARCADIA", mus: "DELTS", range: [15, 20], inc: 2.5, sets: 2, kind: "ACCESSORY" },
-  { id: "cable-lateral", name: "Cable Lateral Raise", eq: "ARCADIA", mus: "DELTS", range: [12, 20], inc: 2.5, sets: 3, kind: "ACCESSORY" },
-  { id: "cable-curl", name: "Cable Curl", eq: "ARCADIA", mus: "BICEPS", range: [10, 12], inc: 2.5, sets: 3, kind: "ACCESSORY" },
-  { id: "rope-pushdown", name: "Rope Pushdown", eq: "ARCADIA", mus: "TRICEPS", range: [12, 15], inc: 2.5, sets: 2, kind: "ACCESSORY" },
-  { id: "oh-tricep", name: "Cable Overhead Tricep Ext.", eq: "ARCADIA", mus: "TRICEPS", range: [10, 12], inc: 2.5, sets: 3, kind: "ACCESSORY" },
-  { id: "pallof", name: "Pallof Press", eq: "ARCADIA", mus: "CORE", range: [10, 12], inc: 2.5, sets: 2, kind: "CORE" },
-  { id: "woodchop", name: "Cable Woodchop", eq: "ARCADIA", mus: "CORE", range: [10, 12], inc: 2.5, sets: 2, kind: "CORE" },
-  { id: "cable-pullthrough", name: "Cable Pull-Through", eq: "ARCADIA", mus: "GLUTES", range: [12, 15], inc: 5, sets: 3, kind: "ACCESSORY" },
-  // HYPER PRO + LEG DEVELOPER
-  { id: "leg-ext", name: "Leg Extension", eq: "HYPER PRO", mus: "QUADS", range: [10, 15], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "leg-curl", name: "Lying Hamstring Curl", eq: "HYPER PRO", mus: "HAMS", range: [10, 15], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "back-ext", name: "Back Extension", eq: "HYPER PRO", mus: "ERECTORS", range: [10, 15], inc: 5, sets: 2, kind: "ACCESSORY" },
-  { id: "reverse-hyper", name: "Reverse Hyper", eq: "HYPER PRO", mus: "GLUTES", range: [10, 15], inc: 5, sets: 2, kind: "ACCESSORY" },
-  { id: "nordic", name: "Nordic Curl", eq: "HYPER PRO", mus: "HAMS", range: [4, 8], inc: 0, sets: 3, kind: "ACCESSORY", bw: true },
-  { id: "ghd-situp", name: "GHD Sit-Up", eq: "HYPER PRO", mus: "CORE", range: [8, 15], inc: 0, sets: 2, kind: "CORE", bw: true },
-  // ADJUSTABLE DUMBBELLS
-  { id: "db-bench", name: "DB Bench Press", eq: "DUMBBELL", mus: "CHEST", range: [8, 12], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "incline-db", name: "Incline DB Press", eq: "DUMBBELL", mus: "CHEST", range: [8, 12], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "bss", name: "Bulgarian Split Squat", eq: "DUMBBELL", mus: "QUADS", range: [8, 10], inc: 5, sets: 3, kind: "ACCESSORY", perSide: true },
-  { id: "goblet", name: "Goblet Squat", eq: "DUMBBELL", mus: "QUADS", range: [10, 15], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "db-row", name: "One-Arm DB Row", eq: "DUMBBELL", mus: "BACK", range: [8, 12], inc: 5, sets: 3, kind: "ACCESSORY", perSide: true },
-  { id: "db-rdl", name: "DB RDL", eq: "DUMBBELL", mus: "HAMS", range: [10, 12], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "db-curl", name: "DB Curl", eq: "DUMBBELL", mus: "BICEPS", range: [10, 12], inc: 2.5, sets: 3, kind: "ACCESSORY" },
-  { id: "hammer-curl", name: "Hammer Curl", eq: "DUMBBELL", mus: "BICEPS", range: [12, 15], inc: 2.5, sets: 2, kind: "ACCESSORY" },
-  { id: "db-lateral", name: "DB Lateral Raise", eq: "DUMBBELL", mus: "DELTS", range: [12, 20], inc: 2.5, sets: 3, kind: "ACCESSORY" },
-  { id: "db-ohp", name: "Seated DB Shoulder Press", eq: "DUMBBELL", mus: "DELTS", range: [8, 12], inc: 5, sets: 3, kind: "ACCESSORY" },
-  { id: "db-lunge", name: "DB Walking Lunge", eq: "DUMBBELL", mus: "QUADS", range: [8, 12], inc: 5, sets: 3, kind: "ACCESSORY", perSide: true },
-  { id: "db-stepup", name: "DB Step-Up", eq: "DUMBBELL", mus: "GLUTES", range: [8, 12], inc: 5, sets: 3, kind: "ACCESSORY", perSide: true },
-  { id: "db-calf", name: "Single-Leg DB Calf Raise", eq: "DUMBBELL", mus: "CALVES", range: [10, 15], inc: 5, sets: 3, kind: "ACCESSORY", perSide: true },
-  { id: "db-pullover", name: "DB Pullover", eq: "DUMBBELL", mus: "LATS", range: [10, 12], inc: 5, sets: 3, kind: "ACCESSORY" },
-];
-const LIB_MAP = Object.fromEntries(LIB.map(e => [e.id, e]));
+
 
 /* ---------- PROGRAM TEMPLATE (from your 3-day plan) ---------- */
 // Colors are fixed per slot; name + exercise list are user-editable and persisted.
@@ -93,38 +33,10 @@ const clone = o => JSON.parse(JSON.stringify(o));
    3. Otherwise → same weight, add 1 rep to your weakest set.
    4. Missed the bottom of the range on 2+ sets → deload 7.5%.
    e1RM (Epley): w * (1 + reps/30), capped at 12 reps for accuracy. */
-const epley = (w, r) => (r > 0 ? w * (1 + Math.min(r, 12) / 30) : 0);
-const roundTo = (x, step) => Math.round(x / step) * step;
-
-function suggestNext(ex, history) {
-  const sessions = history.filter(s => s.exId === ex.id);
-  if (!sessions.length) {
-    return { weight: null, reps: ex.range[0], sets: ex.sets, note: "FIRST RUN — pick a weight you could do for ~" + (ex.range[1] + 2) + " reps, log honest sets", status: "INIT" };
-  }
-  const last = sessions[sessions.length - 1];
-  const w = last.sets[0]?.w ?? 0;
-  const repsArr = last.sets.map(s => s.r);
-  const [lo, hi] = ex.range;
-  const allTop = repsArr.length >= ex.sets && repsArr.every(r => r >= hi);
-  const misses = repsArr.filter(r => r < lo).length;
-
-  if (allTop) {
-    const nw = ex.bw ? w : roundTo(w + ex.inc, 2.5);
-    return { weight: nw, reps: lo, sets: ex.sets, note: ex.bw ? `All sets at top — add reps or load a plate` : `LEVEL UP — all sets hit ${hi}. Load ${nw} lb, drop to ${lo} reps, climb again`, status: "UP" };
-  }
-  if (misses >= 2) {
-    const nw = roundTo(w * 0.925, 2.5);
-    return { weight: nw, reps: lo, sets: ex.sets, note: `RECALIBRATE — missed range on ${misses} sets. Deload to ${nw} lb and rebuild`, status: "DOWN" };
-  }
-  const minReps = Math.min(...repsArr);
-  const target = Math.min(minReps + 1, hi);
-  return { weight: w, reps: target, sets: ex.sets, note: `HOLD ${w} lb — push weakest set to ${target} reps (last: ${repsArr.join("/")})`, status: "HOLD" };
-}
-
 /* ---------- STORAGE ----------
    Dual-mode: uses Claude artifact storage when available,
    otherwise browser localStorage (standalone PWA on your phone). */
-const KEY = "cybertrain-v1";
+const KEY = "cybertrain-ex-v1";
 const store = {
   async get(k) {
     if (typeof window !== "undefined" && window.storage && window.storage.get) return window.storage.get(k);
@@ -196,6 +108,10 @@ export default function CyberTrain() {
   const [active, setActive] = useState(null); // active session: {day, started, entries:{exId:[{w,r,rir}]}}
   const [openEx, setOpenEx] = useState(null);
   const [libFilter, setLibFilter] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [muscle, setMuscle] = useState("ALL");
+  const [coachEx, setCoachEx] = useState("");
+  const askCoach = id => { setCoachEx(id); setTab("COACH"); };
   const [statEx, setStatEx] = useState(null);
   const [flash, setFlash] = useState(null);
   const [editDay, setEditDay] = useState("A");
@@ -276,9 +192,12 @@ export default function CyberTrain() {
     let totalVol = 0, totalSets = 0, totalReps = 0, prs = 0;
     const bestE1RM = {}, firstE1RM = {}, sessionsByDate = {};
     for (const l of logs) {
-      totalVol += vol(l.sets);
       totalSets += l.sets.length;
+      sessionsByDate[l.sessionId] = true;
+      if (LIB_MAP[l.exId]?.unit === "sec") continue;
+      totalVol += vol(l.sets);
       totalReps += l.sets.reduce((a, s) => a + s.r, 0);
+      if (LIB_MAP[l.exId]?.bw) continue;
       const best = Math.max(...l.sets.map(s => epley(s.w, s.r)), 0);
       if (!(l.exId in firstE1RM)) firstE1RM[l.exId] = best;
       if (best > (bestE1RM[l.exId] || 0)) { if (l.exId in bestE1RM) prs++; bestE1RM[l.exId] = best; }
@@ -293,12 +212,12 @@ export default function CyberTrain() {
   const startSession = () => { buzz(HAP.log); setActive({ day, started: Date.now(), id: "s" + Date.now(), entries: {} }); setOpenEx(program[day].exs[0]); };
 
   const addSet = (exId, w, r, rir) => {
-    if (!active || !r) return;
+    if (!active || !Number.isFinite(w) || w < 0 || !Number.isInteger(r) || r <= 0 || (rir != null && (!Number.isFinite(rir) || rir < 0 || rir > 10))) return;
     const entries = { ...active.entries, [exId]: [...(active.entries[exId] || []), { w: w || 0, r, rir }] };
     setActive({ ...active, entries });
     const ex = EX(exId);
     const newE = epley(w || 0, r);
-    const isPR = newE > (metrics.bestE1RM[exId] || 0) && exHistory(exId).length > 0;
+    const isPR = ex.unit !== "sec" && !ex.bw && newE > (metrics.bestE1RM[exId] || 0) && exHistory(exId).length > 0;
     if (isPR) {
       setFlash(`◤ NEW PR // ${ex.name.toUpperCase()} — e1RM ${Math.round(newE)} LB ◢`);
       setTimeout(() => setFlash(null), 3000);
@@ -321,11 +240,11 @@ export default function CyberTrain() {
       .map(([exId, sets]) => ({ exId, sets, ts: Date.now(), sessionId: active.id, day: active.day }));
     if (newLogs.length) persist({ ...data, logs: [...logs, ...newLogs] });
     setActive(null); setOpenEx(null);
-    setFlash("◤ SESSION ARCHIVED // +" + fmtK(newLogs.reduce((a, l) => a + vol(l.sets), 0)) + " LB MOVED ◢");
+    setFlash("◤ SESSION ARCHIVED // " + newLogs.length + " EXERCISES SAVED ◢");
     setTimeout(() => setFlash(null), 3000);
   };
 
-  const sessionVol = active ? Object.values(active.entries).flat().reduce((a, s) => a + (s.w || 0) * s.r, 0) : 0;
+  const sessionVol = active ? Object.entries(active.entries).reduce((a, [id, sets]) => a + (LIB_MAP[id]?.unit === "sec" ? 0 : vol(sets)), 0) : 0;
 
   /* ---- program builder mutations ---- */
   const updateProgram = next => persist({ ...data, program: next });
@@ -368,7 +287,7 @@ export default function CyberTrain() {
 
   return (
     <div className={"ct-root" + (active && rest ? " resting" : "")}>
-      <style>{CSS}</style>
+      <style>{CSS + EX_THEME}</style>
       <div className="scanlines" />
       {flash && <div className="flash">{flash}</div>}
 
@@ -376,8 +295,8 @@ export default function CyberTrain() {
       <header className="hdr">
         <div className="hdr-block" />
         <div>
-          <h1>CYBER<span>TRAIN</span></h1>
-          <div className="hdr-sub">NIGHT CITY STRENGTH OS // v2.077</div>
+          <h1>CYBER<span>TRAIN</span><em>EX</em></h1>
+          <div className="hdr-sub">PERSONAL STRENGTH SYSTEM // 2077.EX</div>
         </div>
         <div className="hdr-stat">
           <div className="hdr-stat-n">{fmtK(metrics.totalVol)}</div>
@@ -385,11 +304,11 @@ export default function CyberTrain() {
         </div>
       </header>
 
-      <main className="main">
+      <div className="system-strip"><span>● LOCAL SYSTEM</span><span>{LIB.length} EXERCISES / 05 RIGS</span><span>{active ? "SESSION ACTIVE" : "READY TO TRAIN"}</span></div><main className="main">
         {/* ============ TRAIN ============ */}
         {tab === "TRAIN" && !active && (
           <div className="pad">
-            <div className="sec-label">// SELECT PROTOCOL</div>
+            <section className="mission"><div className="eyebrow">TRAINING TERMINAL / 01</div><h2>BUILD YOUR<br/><span>NEXT VERSION.</span></h2><p>Three protocols. One stronger you.</p><div className="mission-metrics"><div><strong>{metrics.sessionCount.toString().padStart(2,"0")}</strong><span>SESSIONS LOGGED</span></div><div><strong>{program[day].exs.reduce((n,id)=>n+EX(id).sets,0)}</strong><span>SETS IN DAY {day}</span></div><div><strong>{LIB.length}</strong><span>MOVEMENTS</span></div></div></section><div className="section-heading"><div className="sec-label">// SELECT PROTOCOL</div><span>01 — 03</span></div>
             {Object.entries(program).map(([k, p]) => (
               <button key={k} className={"day-card" + (day === k ? " sel" : "")} style={{ "--dc": DAY_COLORS[k] }} onClick={() => { buzz(HAP.tap); setDay(k); }}>
                 <div className="day-letter">{k}</div>
@@ -400,7 +319,7 @@ export default function CyberTrain() {
                 <div className="day-chev">{day === k ? "◉" : "○"}</div>
               </button>
             ))}
-            <button className="cta" onClick={startSession}>▶ JACK IN — START DAY {day}</button>
+            <button className="cta" onClick={startSession} disabled={!program[day].exs.length}>▶ JACK IN — START DAY {day}</button>
             <div className="hint">Targets auto-load from your last run of each exercise. Freestyle exercises can be added mid-session from the Library tab.</div>
           </div>
         )}
@@ -431,7 +350,7 @@ export default function CyberTrain() {
                         <span className="sug-tag">{sug.status === "UP" ? "▲ PROGRESS" : sug.status === "DOWN" ? "▼ DELOAD" : sug.status === "INIT" ? "◆ NEW" : "▶ TARGET"}</span>
                         {sug.note}
                       </div>
-                      <SetLogger ex={ex} sug={sug} done={done} onAdd={addSet} onRemove={removeSet} />
+                      <ExerciseGuide ex={ex}/><button className="text-btn" onClick={() => askCoach(ex.id)}>ASK COACH ↗</button><SetLogger ex={ex} sug={sug} done={done} onAdd={addSet} onRemove={removeSet} />
                       <button className="rest-start" onClick={() => { buzz(HAP.tap); startRest(ex); }}>⏱ START REST — {fmtClock(restOf(ex, restOv))}</button>
                     </div>
                   )}
@@ -448,11 +367,11 @@ export default function CyberTrain() {
           <div className="pad">
             <div className="sec-label">// EQUIPMENT ARSENAL</div>
             <div className="filter-row">
-              {["ALL", "RACK", "HEX", "ARCADIA", "HYPER PRO", "DUMBBELL"].map(f => (
+              {["ALL", ...EQUIPMENT].map(f => (
                 <button key={f} className={"chip" + (libFilter === f ? " on" : "")} onClick={() => { buzz(HAP.tap); setLibFilter(f); }}>{f}</button>
               ))}
             </div>
-            {LIB.filter(e => libFilter === "ALL" || e.eq === libFilter).map(b => {
+            {/* Search applies to both library and builder. */}<SearchControls search={search} setSearch={setSearch} muscle={muscle} setMuscle={setMuscle}/><div className="result-count">{filterExercises(LIB,libFilter,muscle,search).length} / {LIB.length} MOVEMENTS</div>{!filterExercises(LIB,libFilter,muscle,search).length && <div className="hint">No matching exercises. Clear your search or change filters.</div>}{filterExercises(LIB,libFilter,muscle,search).map(b => {
               const ex = effEx(b, exOv);
               const h = exHistory(ex.id);
               const sug = suggestNext(ex, logs);
@@ -461,7 +380,7 @@ export default function CyberTrain() {
                   <div className="lib-main">
                     <div className="ex-name">{ex.name}</div>
                     <div className="ex-sub">{ex.eq} · {ex.mus} · {ex.sets}×{ex.range[0]}–{ex.range[1]} · REST {fmtClock(restOf(ex, restOv))}</div>
-                    <div className="lib-next">{h.length ? `NEXT → ${sug.weight ?? "BW"}${sug.weight ? " lb" : ""} × ${sug.reps}` : "NO DATA YET"}</div>
+                    <ExerciseGuide ex={ex}/><button className="text-btn" onClick={() => askCoach(ex.id)}>ASK ABOUT THIS EXERCISE ↗</button><div className="lib-next">{h.length ? `NEXT → ${sug.weight ?? "BW"}${sug.weight ? " lb" : ""} × ${sug.reps}` : "NO DATA YET"}</div>
                   </div>
                   {active && (
                     <button className="lib-add" onClick={() => { setTab("TRAIN"); setOpenEx(ex.id); if (!active.entries[ex.id]) setActive({ ...active, entries: { ...active.entries, [ex.id]: [] } }); }}>+ ADD</button>
@@ -485,6 +404,7 @@ export default function CyberTrain() {
             </div>
 
             <div className="sec-label" style={{ marginTop: 24 }}>// e1RM PROGRESSION</div>
+            <div className="hint">Volume uses logged load × repetitions, without doubling per-hand or per-side entries. Timed work is excluded from rep totals and volume. Bodyweight and timed exercises are excluded from e1RM estimates.</div>
             {Object.keys(metrics.bestE1RM).length === 0 && <div className="hint">Log sessions to unlock progression analytics. Estimated 1RM (Epley formula) is tracked per exercise from your best set each session.</div>}
             {Object.keys(metrics.bestE1RM).map(exId => {
               const ex = LIB_MAP[exId]; if (!ex) return null;
@@ -518,7 +438,7 @@ export default function CyberTrain() {
             })}
 
             <div className="sec-label" style={{ marginTop: 28 }}>// DATA VAULT</div>
-            <div className="hint" style={{ marginBottom: 10 }}>Every set is auto-saved on this device the instant you log it. Use the vault to back up your full history as text, or restore it after moving devices/accounts.</div>
+            <div className="hint" style={{ marginBottom: 10 }}>Completed sessions are saved on this device when you end and archive them. Keep this page open during an active session. Use the vault to back up your full history as text, or restore it after moving devices/accounts.</div>
             <div className="vault-btns">
               <button className="vault-btn cyan" onClick={exportData}>⇪ EXPORT BACKUP</button>
               <button className="vault-btn yellow" onClick={() => { buzz(HAP.tap); setVaultMode(vaultMode === "IMPORT" ? null : "IMPORT"); setVaultText(""); }}>⇩ IMPORT</button>
@@ -595,11 +515,11 @@ export default function CyberTrain() {
 
             <div className="sec-label" style={{ marginTop: 22 }}>// ADD FROM ARSENAL</div>
             <div className="filter-row">
-              {["ALL", "RACK", "HEX", "ARCADIA", "HYPER PRO", "DUMBBELL"].map(f => (
+              {["ALL", ...EQUIPMENT].map(f => (
                 <button key={f} className={"chip" + (buildFilter === f ? " on" : "")} onClick={() => { buzz(HAP.tap); setBuildFilter(f); }}>{f}</button>
               ))}
             </div>
-            {LIB.filter(e => (buildFilter === "ALL" || e.eq === buildFilter)).map(ex => {
+            <SearchControls search={search} setSearch={setSearch} muscle={muscle} setMuscle={setMuscle}/><div className="result-count">{filterExercises(LIB,buildFilter,muscle,search).length} MATCHES</div>{!filterExercises(LIB,buildFilter,muscle,search).length && <div className="hint">No matching exercises. Adjust the filters above.</div>}{filterExercises(LIB,buildFilter,muscle,search).map(ex => {
               const inDay = program[editDay].exs.includes(ex.id);
               return (
                 <div key={ex.id} className="lib-row">
@@ -614,6 +534,7 @@ export default function CyberTrain() {
             <div className="hint" style={{ marginTop: 16 }}>Edits save instantly and carry into your next session. History stays tied to each exercise, so progression targets survive any reordering.</div>
           </div>
         )}
+        {tab === "COACH" && <Coach library={LIB} data={data} active={active} selected={coachEx} onSelect={setCoachEx} resolveExercise={EX}/>}
       </main>
 
       {/* REST TIMER BAR */}
@@ -642,8 +563,8 @@ export default function CyberTrain() {
 
       {/* BOTTOM NAV */}
       <nav className="bnav">
-        {[["TRAIN", "⚡"], ["ARSENAL", "⬡"], ["BUILD", "⚙"], ["DATA", "▥"], ["PROTOCOL", "≡"]].map(([t, ic]) => (
-          <button key={t} className={"bnav-btn" + (tab === t ? " on" : "")} onClick={() => { buzz(HAP.tap); setTab(t); }}>
+        {[["TRAIN", "⚡"], ["ARSENAL", "⬡"], ["BUILD", "⚙"], ["DATA", "▥"], ["PROTOCOL", "≡"], ["COACH", "↗"]].map(([t, ic]) => (
+          <button key={t} aria-current={tab === t ? "page" : undefined} className={"bnav-btn" + (tab === t ? " on" : "")} onClick={() => { buzz(HAP.tap); setTab(t); }}>
             <span className="bnav-ic">{ic}</span>{t}
           </button>
         ))}
@@ -978,3 +899,6 @@ ${FONT_IMPORT}
 input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
 button:focus-visible,input:focus-visible{outline:2px solid #fcee0a;outline-offset:1px}
 `;
+
+function SearchControls({search,setSearch,muscle,setMuscle}) { return <div className="search-controls"><label>SEARCH ARSENAL<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Exercise, equipment, muscle…"/></label><label>MUSCLE GROUP<select value={muscle} onChange={e=>setMuscle(e.target.value)}><option value="ALL">All muscles</option>{[...new Set(LIB.map(e=>e.mus))].sort().map(m=><option key={m}>{m}</option>)}</select></label></div>; }
+function ExerciseGuide({ex}) { const g=guideFor(ex); return <details className="exercise-guide"><summary>SETUP & TECHNIQUE {ex.perSide ? " / EACH SIDE" : ""}</summary><p>{g.setup}</p><p>{g.cue}</p><p className="load-note">{g.load}</p></details>; }

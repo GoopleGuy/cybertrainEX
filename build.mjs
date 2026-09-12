@@ -3,7 +3,7 @@
 import { build } from "esbuild";
 import { mkdirSync, copyFileSync, readFileSync, writeFileSync } from "fs";
 
-const version = "cybertrain-" + (process.argv[2] || "dev").slice(0, 10);
+const version = "cybertrain-ex-" + (process.argv[2] || "dev").slice(0, 10);
 mkdirSync("dist", { recursive: true });
 
 await build({

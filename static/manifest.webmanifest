@@ -1,6 +1,6 @@
 {
-  "name": "CyberTrain — Night City Strength OS",
-  "short_name": "CyberTrain",
+  "name": "CyberTrainEX — Night City Strength OS",
+  "short_name": "CyberTrainEX",
   "description": "Workout tracker with double-progression engine, rest timers, and haptics.",
   "start_url": "./index.html",
   "scope": "./",
