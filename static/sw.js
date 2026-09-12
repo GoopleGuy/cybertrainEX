@@ -1,7 +1,7 @@
 /* CyberTrain service worker — offline-first app shell. */
 const CACHE_PREFIX = "cybertrain-ex:" + self.registration.scope + ":";
 const VERSION = CACHE_PREFIX + "__VERSION__";
-const SHELL = ["./", "./index.html", "./app.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
+const SHELL = ["./", "./index.html", "./app.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./fonts/rajdhani-500.ttf", "./fonts/rajdhani-600.ttf", "./fonts/rajdhani-700.ttf", "./fonts/share-tech-mono.ttf"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

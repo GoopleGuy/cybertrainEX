@@ -1,7 +1,7 @@
 /* Build CyberTrain into ./dist — run by GitHub Actions on every push.
    Usage: node build.mjs [version-tag]                                  */
 import { build } from "esbuild";
-import { mkdirSync, copyFileSync, readFileSync, writeFileSync } from "fs";
+import { mkdirSync, copyFileSync, readFileSync, writeFileSync, cpSync } from "fs";
 
 const version = "cybertrain-ex-" + (process.argv[2] || "dev").slice(0, 10);
 mkdirSync("dist", { recursive: true });
@@ -21,4 +21,5 @@ for (const f of ["index.html", "manifest.webmanifest", "icon-192.png", "icon-512
   copyFileSync("static/" + f, "dist/" + f);
 }
 writeFileSync("dist/sw.js", readFileSync("static/sw.js", "utf8").replace("__VERSION__", version));
+cpSync("static/fonts", "dist/fonts", { recursive: true });
 console.log("Built dist/ @", version);

@@ -1,8 +1,8 @@
 import { LIB, LIB_MAP, EQUIPMENT, guideFor, filterExercises } from "./library.mjs";
 import { suggestNext, epley } from "./progression.mjs";
-import Coach from "./Coach.jsx";
-import { EX_THEME } from "./theme.mjs";
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { EX_THEME, FONT_FACES } from "./theme.mjs";
+import NavIcon from "./NavIcon.jsx";
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 
 /* ============================================================
    CYBERTRAIN // NIGHT CITY STRENGTH OS
@@ -110,8 +110,7 @@ export default function CyberTrain() {
   const [libFilter, setLibFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [muscle, setMuscle] = useState("ALL");
-  const [coachEx, setCoachEx] = useState("");
-  const askCoach = id => { setCoachEx(id); setTab("COACH"); };
+
   const [statEx, setStatEx] = useState(null);
   const [flash, setFlash] = useState(null);
   const [editDay, setEditDay] = useState("A");
@@ -119,6 +118,17 @@ export default function CyberTrain() {
   const [rest, setRest] = useState(null); // {exId, total, endsAt, done}
   const [, setTick] = useState(0);
   const doneRef = useRef(false);
+  const mainRef = useRef(null);
+  const scrollPositions = useRef({});
+  const navigate = next => {
+    if (next === tab) return;
+    scrollPositions.current[tab] = mainRef.current?.scrollTop || 0;
+    buzz(HAP.tap);
+    setTab(next);
+  };
+  useLayoutEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = scrollPositions.current[tab] || 0;
+  }, [tab]);
 
   useEffect(() => { loadData().then(setData); }, []);
   const persist = useCallback(d => { setData(d); saveData(d); }, []);
@@ -296,7 +306,7 @@ export default function CyberTrain() {
         <div className="hdr-block" />
         <div>
           <h1>CYBER<span>TRAIN</span><em>EX</em></h1>
-          <div className="hdr-sub">PERSONAL STRENGTH SYSTEM // 2077.EX</div>
+          <div className="hdr-sub">NIGHT CITY STRENGTH OS // EX</div>
         </div>
         <div className="hdr-stat">
           <div className="hdr-stat-n">{fmtK(metrics.totalVol)}</div>
@@ -304,23 +314,25 @@ export default function CyberTrain() {
         </div>
       </header>
 
-      <div className="system-strip"><span>● LOCAL SYSTEM</span><span>{LIB.length} EXERCISES / 05 RIGS</span><span>{active ? "SESSION ACTIVE" : "READY TO TRAIN"}</span></div><main className="main">
+      <div className="system-strip"><span><i/> {active ? "SESSION LIVE" : "NEURAL LINK ONLINE"}</span><span>{LIB.length} MOVEMENTS <b>//</b> 05 RIGS</span></div>
+      <main className="main" ref={mainRef} id="main-content">
+      <div className="tab-content" key={tab}>
         {/* ============ TRAIN ============ */}
         {tab === "TRAIN" && !active && (
           <div className="pad">
-            <section className="mission"><div className="eyebrow">TRAINING TERMINAL / 01</div><h2>BUILD YOUR<br/><span>NEXT VERSION.</span></h2><p>Three protocols. One stronger you.</p><div className="mission-metrics"><div><strong>{metrics.sessionCount.toString().padStart(2,"0")}</strong><span>SESSIONS LOGGED</span></div><div><strong>{program[day].exs.reduce((n,id)=>n+EX(id).sets,0)}</strong><span>SETS IN DAY {day}</span></div><div><strong>{LIB.length}</strong><span>MOVEMENTS</span></div></div></section><div className="section-heading"><div className="sec-label">// SELECT PROTOCOL</div><span>01 — 03</span></div>
+            <div className="section-heading"><div className="sec-label">// SELECT PROTOCOL</div><span>{String(metrics.sessionCount).padStart(2,"0")} RUNS ARCHIVED</span></div>
             {Object.entries(program).map(([k, p]) => (
-              <button key={k} className={"day-card" + (day === k ? " sel" : "")} style={{ "--dc": DAY_COLORS[k] }} onClick={() => { buzz(HAP.tap); setDay(k); }}>
+              <div key={k} className={"day-slot" + (day === k ? " selected" : "")} style={{"--dc":DAY_COLORS[k]}}><button aria-pressed={day === k} className={"day-card" + (day === k ? " sel" : "")} style={{ "--dc": DAY_COLORS[k] }} onClick={() => { buzz(HAP.tap); setDay(k); }}>
                 <div className="day-letter">{k}</div>
                 <div>
                   <div className="day-name">{p.name}</div>
                   <div className="day-meta">{p.exs.length} EXERCISES · {p.exs.map(id => LIB_MAP[id].mus).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4).join(" / ")}</div>
                 </div>
                 <div className="day-chev">{day === k ? "◉" : "○"}</div>
-              </button>
+              </button></div>
             ))}
-            <button className="cta" onClick={startSession} disabled={!program[day].exs.length}>▶ JACK IN — START DAY {day}</button>
-            <div className="hint">Targets auto-load from your last run of each exercise. Freestyle exercises can be added mid-session from the Library tab.</div>
+            <button className="cta start-cta" style={{"--dc":DAY_COLORS[day]}} onClick={startSession} disabled={!program[day].exs.length}>▶ JACK IN — START DAY {day}</button>
+            <div className="hint">Targets load from your last session. Add a movement anytime from ARSENAL.</div>
           </div>
         )}
 
@@ -337,23 +349,23 @@ export default function CyberTrain() {
               const open = openEx === exId;
               return (
                 <div key={exId} className={"ex-card" + (open ? " open" : "") + (done.length >= ex.sets ? " done" : "")}>
-                  <button className="ex-head" onClick={() => { buzz(HAP.tap); setOpenEx(open ? null : exId); }}>
+                  <button className="ex-head" aria-expanded={open} onClick={() => { buzz(HAP.tap); setOpenEx(open ? null : exId); }}>
                     <div>
                       <div className="ex-name">{ex.name}{ex.perSide ? " /side" : ""}</div>
                       <div className="ex-sub">{ex.eq} · {ex.sets}×{ex.range[0]}–{ex.range[1]}{ex.unit === "sec" ? "s" : ""} · REST {fmtClock(restOf(ex, restOv))}</div>
                     </div>
                     <div className="ex-prog">{done.length}/{ex.sets}<span className="ex-prog-l">SETS</span></div>
                   </button>
-                  {open && (
+                  <div className={"ex-reveal" + (open ? " expanded" : "")} inert={!open}><div className="ex-reveal-inner">
                     <div className="ex-body">
                       <div className={"sug sug-" + sug.status}>
                         <span className="sug-tag">{sug.status === "UP" ? "▲ PROGRESS" : sug.status === "DOWN" ? "▼ DELOAD" : sug.status === "INIT" ? "◆ NEW" : "▶ TARGET"}</span>
                         {sug.note}
                       </div>
-                      <ExerciseGuide ex={ex}/><button className="text-btn" onClick={() => askCoach(ex.id)}>ASK COACH ↗</button><SetLogger ex={ex} sug={sug} done={done} onAdd={addSet} onRemove={removeSet} />
+                      <ExerciseGuide ex={ex}/><SetLogger ex={ex} sug={sug} done={done} onAdd={addSet} onRemove={removeSet} />
                       <button className="rest-start" onClick={() => { buzz(HAP.tap); startRest(ex); }}>⏱ START REST — {fmtClock(restOf(ex, restOv))}</button>
                     </div>
-                  )}
+                  </div></div>
                 </div>
               );
             })}
@@ -380,10 +392,10 @@ export default function CyberTrain() {
                   <div className="lib-main">
                     <div className="ex-name">{ex.name}</div>
                     <div className="ex-sub">{ex.eq} · {ex.mus} · {ex.sets}×{ex.range[0]}–{ex.range[1]} · REST {fmtClock(restOf(ex, restOv))}</div>
-                    <ExerciseGuide ex={ex}/><button className="text-btn" onClick={() => askCoach(ex.id)}>ASK ABOUT THIS EXERCISE ↗</button><div className="lib-next">{h.length ? `NEXT → ${sug.weight ?? "BW"}${sug.weight ? " lb" : ""} × ${sug.reps}` : "NO DATA YET"}</div>
+                    <ExerciseGuide ex={ex}/><div className="lib-next">{h.length ? `NEXT → ${sug.weight ?? "BW"}${sug.weight ? " lb" : ""} × ${sug.reps}` : "NO DATA YET"}</div>
                   </div>
                   {active && (
-                    <button className="lib-add" onClick={() => { setTab("TRAIN"); setOpenEx(ex.id); if (!active.entries[ex.id]) setActive({ ...active, entries: { ...active.entries, [ex.id]: [] } }); }}>+ ADD</button>
+                    <button className="lib-add" onClick={() => { navigate("TRAIN"); setOpenEx(ex.id); if (!active.entries[ex.id]) setActive({ ...active, entries: { ...active.entries, [ex.id]: [] } }); }}>+ ADD</button>
                   )}
                 </div>
               );
@@ -534,7 +546,7 @@ export default function CyberTrain() {
             <div className="hint" style={{ marginTop: 16 }}>Edits save instantly and carry into your next session. History stays tied to each exercise, so progression targets survive any reordering.</div>
           </div>
         )}
-        {tab === "COACH" && <Coach library={LIB} data={data} active={active} selected={coachEx} onSelect={setCoachEx} resolveExercise={EX}/>}
+      </div>
       </main>
 
       {/* REST TIMER BAR */}
@@ -562,10 +574,10 @@ export default function CyberTrain() {
       })()}
 
       {/* BOTTOM NAV */}
-      <nav className="bnav">
-        {[["TRAIN", "⚡"], ["ARSENAL", "⬡"], ["BUILD", "⚙"], ["DATA", "▥"], ["PROTOCOL", "≡"], ["COACH", "↗"]].map(([t, ic]) => (
-          <button key={t} aria-current={tab === t ? "page" : undefined} className={"bnav-btn" + (tab === t ? " on" : "")} onClick={() => { buzz(HAP.tap); setTab(t); }}>
-            <span className="bnav-ic">{ic}</span>{t}
+      <nav className="bnav" aria-label="Main navigation" style={{"--nav-index":["TRAIN","ARSENAL","BUILD","DATA","PROTOCOL"].indexOf(tab)}}><div className="nav-indicator" aria-hidden="true"/>
+        {["TRAIN", "ARSENAL", "BUILD", "DATA", "PROTOCOL"].map(t => (
+          <button key={t} aria-current={tab === t ? "page" : undefined} className={"bnav-btn" + (tab === t ? " on" : "")} onClick={() => navigate(t)}>
+            <span className="bnav-ic"><NavIcon name={t}/></span><span>{t}</span>
           </button>
         ))}
       </nav>
@@ -618,7 +630,7 @@ function DragList({ ids, onReorder, onRemove, restOv, onRest, exOv, onTune, onRe
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const rects = listRef.current.map(id => rowRefs.current[id].getBoundingClientRect());
     const centers = rects.map(r => r.top + r.height / 2);
-    const height = rects[0].height + 7; // row + margin
+    const height = rects[from].height + 7; // dragged row + margin, including expanded tuning
     const d = { from, delta: 0, height, target: from, centers, startY: yOf(e) };
     dragRef.current = d; setDrag(d); buzz(HAP.pick);
   };
@@ -676,30 +688,19 @@ function DragList({ ids, onReorder, onRemove, restOv, onRest, exOv, onTune, onRe
             <div className="build-main">
               <div className="ex-name">{ex.name}</div>
               <div className="ex-sub">{ex.eq} · {ex.mus} · {ex.sets}×{ex.range[0]}–{ex.range[1]}</div>
-              <div className="rest-edit">
-                <span className="rest-edit-l">REST</span>
-                <button className="rest-step" onClick={() => onRest(id, restOf(ex, restOv) - 15)}>−</button>
-                <span className={"rest-val" + (restOv && restOv[id] != null ? " custom" : "")}>{fmtClock(restOf(ex, restOv))}</span>
-                <button className="rest-step" onClick={() => onRest(id, restOf(ex, restOv) + 15)}>+</button>
-                {restOv && restOv[id] != null && <button className="rest-def" onClick={() => onRest(id, restOf(ex, null))}>↺</button>}
-              </div>
-              <div className="rest-edit tune-edit">
-                <span className="rest-edit-l">SETS</span>
-                <button className="rest-step" onClick={() => onTune(id, { sets: ex.sets - 1 })}>−</button>
-                <span className={"rest-val" + (ov.sets != null ? " custom" : "")}>{ex.sets}</span>
-                <button className="rest-step" onClick={() => onTune(id, { sets: ex.sets + 1 })}>+</button>
-                <span className="rest-edit-l tune-gap">REPS</span>
-                <button className="rest-step" onClick={() => onTune(id, { lo: ex.range[0] - 1 })}>−</button>
-                <span className={"rest-val" + (ov.lo != null ? " custom" : "")}>{ex.range[0]}</span>
-                <button className="rest-step" onClick={() => onTune(id, { lo: ex.range[0] + 1 })}>+</button>
-                <span className="tune-dash">–</span>
-                <button className="rest-step" onClick={() => onTune(id, { hi: ex.range[1] - 1 })}>−</button>
-                <span className={"rest-val" + (ov.hi != null ? " custom" : "")}>{ex.range[1]}</span>
-                <button className="rest-step" onClick={() => onTune(id, { hi: ex.range[1] + 1 })}>+</button>
-                {tuned && <button className="rest-def" onClick={() => onResetTune(id)}>↺</button>}
-              </div>
+              <details className="build-tuning">
+                <summary><span>REST {fmtClock(restOf(ex, restOv))}{tuned ? " · CUSTOM" : ""}</span><span className="tuning-action">TUNE +</span></summary>
+                <div className="tuning-grid">
+                  <TuneControl label="REST" value={fmtClock(restOf(ex,restOv))} onLess={()=>onRest(id,restOf(ex,restOv)-15)} onMore={()=>onRest(id,restOf(ex,restOv)+15)}/>
+                  <TuneControl label="SETS" value={ex.sets} onLess={()=>onTune(id,{sets:ex.sets-1})} onMore={()=>onTune(id,{sets:ex.sets+1})}/>
+                  <TuneControl label={ex.unit === "sec" ? "MIN SEC" : "MIN REPS"} value={ex.range[0]} onLess={()=>onTune(id,{lo:ex.range[0]-1})} onMore={()=>onTune(id,{lo:ex.range[0]+1})}/>
+                  <TuneControl label={ex.unit === "sec" ? "MAX SEC" : "MAX REPS"} value={ex.range[1]} onLess={()=>onTune(id,{hi:ex.range[1]-1})} onMore={()=>onTune(id,{hi:ex.range[1]+1})}/>
+                </div>
+                {tuned && <button className="reset-tuning" onClick={()=>onResetTune(id)}>↺ RESET SETS / REPS</button>}
+                {restOv[id] != null && <button className="reset-tuning" style={{marginLeft:12}} onClick={()=>onRest(id,restOf(ex,null))}>↺ RESET REST</button>}
+              </details>
             </div>
-            <button className="build-rm" onClick={() => onRemove(id)}>✕</button>
+            <button className="build-rm" aria-label={"Remove " + ex.name} onClick={() => onRemove(id)}>✕</button>
           </div>
         );
       })}
@@ -707,7 +708,11 @@ function DragList({ ids, onReorder, onRemove, restOv, onRest, exOv, onTune, onRe
   );
 }
 
-const FONT_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap');`;
+function TuneControl({label,value,onLess,onMore}) {
+  return <div className="tune-control"><span>{label}</span><div><button onClick={onLess} aria-label={"Decrease " + label}>−</button><output>{value}</output><button onClick={onMore} aria-label={"Increase " + label}>+</button></div></div>;
+}
+
+const FONT_IMPORT = FONT_FACES;
 
 const CSS = `
 ${FONT_IMPORT}
