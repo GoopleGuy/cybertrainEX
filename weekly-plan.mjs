@@ -1,4 +1,4 @@
-export const SESSION_COLORS = {UA:'#fcee0a',LA:'#00f0ff',UB:'#fcee0a',UC:'#ff2a6d',LB:'#00f0ff',MA:'#a9dbb7',MB:'#a9dbb7'};
+export const SESSION_COLORS = {UA:'#fcee0a',LA:'#00f0ff',UB:'#fcee0a',UC:'#ff2a6d',LB:'#00f0ff',MA:'#00f0ff',MB:'#ff2a6d'};
 const row = (id,sets,lo,hi,rest,tempo='',rir='',note='',group='') => ({id,sets,range:[lo,hi],rest,tempo,rir,note,group,...(['cable-lateral','pallof','sa-pulldown'].includes(id)?{perSide:true}:{})});
 const session = (name,minutes,rows,optional=false) => ({name,minutes,optional,exs:rows.map(r=>r.id),rx:Object.fromEntries(rows.map(({id,...r})=>[id,r]))});
 export const WEEKLY_PROGRAM = {
