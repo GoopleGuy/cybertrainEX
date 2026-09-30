@@ -1,0 +1,37 @@
+import {chromium} from '@playwright/test';
+import {createServer} from 'node:http';
+import {readFile,mkdir} from 'node:fs/promises';
+import {resolve,extname} from 'node:path';
+import assert from 'node:assert/strict';
+const server=createServer((req,res)=>res.end('test'));
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const origin=`http://127.0.0.1:${server.address().port}`;
+const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{})});
+try{
+ const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'});
+ const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(8000);
+ await page.route('**/*',async r=>{const u=new URL(r.request().url());if(u.origin!==origin)return r.abort();const p=u.pathname==='/'?'/index.html':u.pathname;try{await r.fulfill({body:await readFile(resolve('dist','.'+p)),contentType:({'.html':'text/html','.js':'text/javascript','.ttf':'font/ttf'})[extname(p)]||'application/octet-stream'});}catch{await r.fulfill({status:404});}});
+ await page.goto(origin);
+ const legacy={logs:[{exId:'bench',ts:1,day:'A',sessionId:'old',sets:[{w:95,r:5,rir:2}]}],program:{A:{name:'My original',exs:['bench']},B:{name:'B',exs:[]},C:{name:'C',exs:[]}},restOv:{bench:123},exOv:{bench:{sets:5}}};
+ await page.evaluate(d=>localStorage.setItem('cybertrain-ex-v1',JSON.stringify(d)),legacy);await page.reload();
+ const read=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('cybertrain-ex-v1')));
+ await page.getByRole('button',{name:'Monday',exact:true}).click();
+ let data=await read();assert.deepEqual(data.logs,legacy.logs);assert.equal(data.legacy.program.A.name,'My original');assert.equal(data.program.UA.rx.bench.sets,4);
+ const out=resolve(process.env.QA_OUTPUT||'test-results');await mkdir(out,{recursive:true});await page.evaluate(()=>document.fonts.ready);await page.screenshot({path:resolve(out,'weekly-monday.png'),animations:'disabled'});
+ await page.locator('.mobility-panel summary').click();await page.getByLabel('Cat-cow').check();data=await read();const checkedDate=Object.keys(data.mobility)[0];
+ await page.getByRole('button',{name:'Tuesday',exact:true}).click();assert.equal(await page.getByLabel('Cat-cow').isChecked(),false);
+ await page.getByRole('button',{name:'Monday',exact:true}).click();assert.equal(await page.getByLabel('Cat-cow').isChecked(),true);await page.locator('.mobility-panel summary').click();
+ await page.getByRole('button',{name:/▶ START Upper A/}).click();
+ const card=name=>page.locator('.ex-card').filter({has:page.locator('.ex-name').filter({hasText:new RegExp('^'+name+'$')})});
+ const log=async c=>{await c.locator('input').nth(0).fill('40');await c.locator('input').nth(1).fill('10');await c.locator('input').nth(2).fill('2');await c.getByRole('button',{name:'LOG ▸',exact:true}).click();};
+ await log(card('Bench Press'));await page.getByLabel('Swap Bench Press',{exact:true}).selectOption('db-floor');assert.equal(await card('Bench Press').count(),0);await log(card('DB Floor Press'));
+ await card('Cable Curl').locator('.ex-head').click();await log(card('Cable Curl'));assert.equal(await page.locator('.rest-bar').count(),0);assert.equal(await card('Rope Pushdown').locator('.ex-head').getAttribute('aria-expanded'),'true');await log(card('Rope Pushdown'));assert.equal(await page.locator('.rest-bar').count(),1);
+ await page.getByRole('button',{name:/END SESSION & ARCHIVE/}).click();data=await read();assert.ok(data.logs.some(l=>l.exId==='db-floor'&&l.substitutedFor==='bench'));assert.equal(data.logs.filter(l=>l.exId==='bench').length,2);assert.equal(data.completed[0].date,checkedDate);assert.equal(data.completed[0].template,'UA');
+ await page.getByRole('button',{name:'Tuesday',exact:true}).click();await page.getByRole('button',{name:/▶ START Lower A/}).click();const jump=card('Broad Jump');await jump.getByLabel('Best jump distance in inches').fill('72.5');await jump.getByRole('button',{name:'LOG ▸',exact:true}).click();await page.getByRole('button',{name:/END SESSION & ARCHIVE/}).click();data=await read();assert.equal(data.logs.find(l=>l.exId==='broad-jump').sets[0].distance,72.5);
+ await page.getByRole('button',{name:'Saturday',exact:true}).click();assert.equal(await page.locator('.start-cta').count(),0);await page.locator('.mobility-panel summary').click();assert.equal(await page.locator('.mobility-panel input[type=checkbox]').count(),8);await page.screenshot({path:resolve(out,'weekly-rest-mobility.png')});
+ await page.getByRole('button',{name:'Sunday',exact:true}).click();await page.getByLabel('Ride complete').check();assert.equal(Object.values((await read()).activity)[0].ride,true);
+ await page.locator('nav').getByRole('button',{name:'BUILD',exact:true}).click();await page.getByRole('button',{name:'Movement A',exact:true}).click();const first=page.locator('.build-row').first();await first.locator('summary').click();await first.getByRole('button',{name:'Increase SETS',exact:true}).click();data=await read();assert.equal(data.exOv.MA.pogo.sets,4);assert.equal(data.exOv.UA,undefined);
+ await page.reload();await page.getByRole('button',{name:'Monday',exact:true}).click();await page.getByRole('button',{name:/Movement A.*EXERCISES/}).click();await page.getByRole('button',{name:/▶ START Movement A/}).click();assert.match(await page.locator('.ex-card').first().textContent(),/4×15/);await page.getByRole('button',{name:/ABORT/}).click();await page.getByRole('button',{name:'Thursday',exact:true}).click();await page.getByRole('button',{name:/Movement A.*EXERCISES/}).click();await page.getByRole('button',{name:/▶ START Movement A/}).click();assert.match(await page.locator('.ex-card').first().textContent(),/4×15/);
+ await page.locator('nav').getByRole('button',{name:'BUILD',exact:true}).click();await page.getByRole('button',{name:'Upper B · Vertical + hypertrophy',exact:true}).click();await page.locator('.build-row').first().locator('summary').click();await page.locator('.build-row').first().getByRole('button',{name:'Increase SETS',exact:true}).click();data=await read();assert.equal(data.exOv.UB.ohp.sets,5);assert.equal(data.exOv.MA.pogo.sets,4);await page.locator('nav').getByRole('button',{name:'TRAIN',exact:true}).click();assert.match(await page.locator('.ex-card').first().textContent(),/4×15/);
+ assert.deepEqual(errors,[]);console.log('Weekly checks passed: legacy migration, date-scoped mobility, preserved swap logs, pair-only rest, jump distance, weekend/ride, shared Movement A tuning, reload.');
+}finally{await browser.close();server.close();}

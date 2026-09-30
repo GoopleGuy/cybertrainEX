@@ -1,5 +1,6 @@
 import { BASE_LIBRARY } from './exercises.mjs';
-export const EQUIPMENT = ['RACK', 'HEX', 'ARCADIA', 'HYPER PRO', 'DUMBBELL'];
+import { PLAN_EXERCISES } from './plan-exercises.mjs';
+export const EQUIPMENT = ['RACK', 'HEX', 'ARCADIA', 'HYPER PRO', 'DUMBBELL', 'BODYWEIGHT'];
 // Each variation has a distinct log identity; optional attachments are explicit.
 const rows = [
 ['RACK','QUADS','bb-split-squat','Barbell Split Squat','Use rack safeties. Set a stationary split stance; lower vertically.',true],
@@ -88,9 +89,10 @@ const rows = [
 ['DUMBBELL','CORE','db-deadbug','DB Dead Bug','Hold a light dumbbell above chest; alternate leg reaches while keeping back stable.',true],
 ];
 const EXTRA = rows.map(([eq,mus,id,name,cue,perSide=false,unit='reps',bw=false]) => ({id,name,eq,mus,cue,perSide,unit,bw,range:unit==='sec'?[20,40]:id.includes('nordic')||id==='eccentric-pullup'?[3,6]:[8,12],inc:bw?0:eq==='ARCADIA'?2.5:5,sets:3,kind:unit==='sec'?'CARRY':mus==='CORE'?'CORE':'ACCESSORY'}));
-export const LIB = [...BASE_LIBRARY, ...EXTRA];
+export const LIB = [...BASE_LIBRARY, ...EXTRA, ...PLAN_EXERCISES];
 export const LIB_MAP = Object.fromEntries(LIB.map(e=>[e.id,e]));
 const setups = {
+ BODYWEIGHT: 'Clear floor space; use a stable bench or rack support when specified.',
  RACK: 'Rack + barbell and plates. Bench variations also need a stable, appropriate bench. Set safeties before lifting.',
  HEX: 'Open hex bar + plates. Confirm handle and frame clearance with an unloaded rehearsal.',
  ARCADIA: 'REP Arcadia functional trainer. Use securely clipped compatible handles; rope/bar/cuff movements require that attachment.',

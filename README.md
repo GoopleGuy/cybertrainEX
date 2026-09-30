@@ -11,11 +11,21 @@ Derived from [GoopleGuy/cybertrain](https://github.com/GoopleGuy/cybertrain) at 
 - Original neon yellow, cyan and magenta lighting, compact proportions, angled panels and locally bundled Rajdhani / Share Tech Mono fonts, including offline.
 - Phone-first typography and spacing sit on a true-black OLED canvas with restrained edge details. Five floating icon buttons replace the full-width navigation bar, and an inset timer uses a thin progress light. Both reserve space so they never cover workout controls. Animated navigation, smooth exercise expansion, retained panel inputs and per-tab scroll positions keep interactions continuous. Keyboard focus, reduced motion and browser zoom are supported.
 - Collapsible program tuning groups rest, sets and rep targets without crowding the exercise list.
-- **141 exercises**, expanded from 58: 31 rack/barbell, 11 open hex bar, 44 Arcadia, 14 Hyper Pro and 41 dumbbell movements. Original exercise IDs and the three-day program remain compatible.
+- **158 exercises**, including 17 additions for the weekly plan. Existing exercise IDs and history are preserved.
 - Equipment and muscle filters, text search, setup guidance and load conventions.
 - Progression requires completed sets at consistent loads. At the top of the rep range, log at least 1 RIR on every set before increasing load. Incomplete work, missing RIR and sets at failure hold the load. Bodyweight movements without a load increment maintain their target after reaching the top. Timed exercises use seconds.
-- Timed work is excluded from repetition/volume totals; bodyweight and timed work are excluded from e1RM. Volume is a logged-load index: per-hand/per-side entries are not doubled.
+- Timed work is excluded from repetition/volume totals; bodyweight, power and timed work are excluded from e1RM. Volume is a logged-load index: per-hand/per-side entries are not doubled. Broad jumps record best distance per set in inches; power, bodyweight and timed logs have a separate history view.
 - EX uses its own storage key and scoped service-worker cache.
+
+## Fixed weekly training
+
+Monday Upper A, Tuesday Lower A, Wednesday Upper B, Thursday Upper C, Friday Lower B; Saturday rest and Sunday optional easy riding. Optional Movement A is shared between Monday/Thursday AM; Movement B is Wednesday AM. Skipping a session never moves the schedule. Choose another date to log that date explicitly.
+
+The eight daily mobility checkboxes are date-specific and separate from workout totals. Two temporary left-side extras receive an in-app review note after six weeks. Supersets alternate and rest after the pair. The sixteen linked substitutes keep distinct load histories and preserve already logged sets when swapped.
+
+The original progression engine is unchanged. Session-specific sets, rep ranges, rest, tempo, RIR and notes come from the handoff; ranged rests default to their upper endpoint. No automatic 12-week phases, deloads, weakest-body-part selection or monthly check-in fields were added. The first-week Nordic adjustment is retained as a note for manual tuning.
+
+Schema 2 migration preserves all prior logs and stores the former A/B/C program and overrides under `legacy`, included in backups. Its exercise list is visible in Protocol. Weekly Build edits are scoped to the selected session; Movement A edits affect both assigned mornings.
 
 ## ChatGPT coaching
 

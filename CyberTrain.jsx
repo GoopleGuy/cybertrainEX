@@ -1,6 +1,8 @@
 import { LIB, LIB_MAP, EQUIPMENT, guideFor, filterExercises } from "./library.mjs";
 import { suggestNext, epley } from "./progression.mjs";
 import { EX_THEME, FONT_FACES } from "./theme.mjs";
+import { WEEKLY_PROGRAM, SESSION_COLORS, WEEK, SUBSTITUTES, migratePlan, dateKey, dayIndex } from './weekly-plan.mjs';
+import WeekHome from './WeekHome.jsx';
 import NavIcon from "./NavIcon.jsx";
 import { restAudio } from "./rest-audio.mjs";
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
@@ -18,12 +20,8 @@ import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } fr
 
 /* ---------- PROGRAM TEMPLATE (from your 3-day plan) ---------- */
 // Colors are fixed per slot; name + exercise list are user-editable and persisted.
-const DAY_COLORS = { A: "#fcee0a", B: "#00f0ff", C: "#ff2a6d" };
-const DEFAULT_PROGRAM = {
-  A: { name: "SQUAT · H-PUSH/PULL", exs: ["back-squat", "bench", "cable-row", "leg-ext", "leg-curl", "face-pull", "pallof", "cable-curl"] },
-  B: { name: "HINGE · V-PUSH/PULL", exs: ["trap-dl", "ohp", "lat-pulldown", "bss", "incline-db", "back-ext", "oh-tricep", "ghd-situp"] },
-  C: { name: "VOLUME · ACCUMULATION", exs: ["paused-squat", "bench-vol", "ohp-vol", "seated-cable-row", "leg-ext", "leg-curl", "hammer-curl", "rope-pushdown", "woodchop"] },
-};
+const DAY_COLORS = SESSION_COLORS;
+const DEFAULT_PROGRAM = WEEKLY_PROGRAM;
 const clone = o => JSON.parse(JSON.stringify(o));
 
 /* ---------- PROGRESSION ENGINE ----------
@@ -56,8 +54,8 @@ async function loadData() {
   try {
     const res = await store.get(KEY);
     const d = res ? JSON.parse(res.value) : {};
-    return { logs: d.logs || [], program: d.program || clone(DEFAULT_PROGRAM), restOv: d.restOv || {}, exOv: d.exOv || {} };
-  } catch { return { logs: [], program: clone(DEFAULT_PROGRAM), restOv: {}, exOv: {} }; }
+    const next = migratePlan(d); if (d.schema !== 2) await saveData(next); return next;
+  } catch { return migratePlan(); }
 }
 async function saveData(data) {
   try { await store.set(KEY, JSON.stringify(data)); } catch (e) { console.error("save failed", e); }
@@ -105,7 +103,9 @@ function Spark({ values, color = "#00f0ff", w = 120, h = 32 }) {
 export default function CyberTrain() {
   const [tab, setTab] = useState("TRAIN");
   const [data, setData] = useState(null);
-  const [day, setDay] = useState("A");
+  const [day, setDay] = useState("UA");
+  const [selectedDate,setSelectedDate] = useState(dateKey);
+  useEffect(()=>{ const d=WEEK[dayIndex(selectedDate)]; setDay(d.pm in DEFAULT_PROGRAM?d.pm:d.am in DEFAULT_PROGRAM?d.am:'UA'); },[selectedDate]);
   const [active, setActive] = useState(null); // active session: {day, started, entries:{exId:[{w,r,rir}]}}
   useEffect(() => { document.documentElement.dataset.sessionActive = String(!!active); }, [active]);
   const [openEx, setOpenEx] = useState(null);
@@ -115,7 +115,7 @@ export default function CyberTrain() {
 
   const [statEx, setStatEx] = useState(null);
   const [flash, setFlash] = useState(null);
-  const [editDay, setEditDay] = useState("A");
+  const [editDay, setEditDay] = useState("UA");
   const [buildFilter, setBuildFilter] = useState("ALL");
   const [rest, setRest] = useState(null); // {exId, total, endsAt, done}
   const [restSound, setRestSound] = useState(() => { try { return localStorage.getItem('cybertrain-ex-rest-sound') !== 'off'; } catch { return true; } });
@@ -155,12 +155,8 @@ export default function CyberTrain() {
     try {
       const d = JSON.parse(vaultText);
       if (!Array.isArray(d.logs)) throw new Error("no logs array");
-      const next = {
-        logs: d.logs.filter(l => l && l.exId && Array.isArray(l.sets)),
-        program: d.program && d.program.A && d.program.B && d.program.C ? d.program : clone(DEFAULT_PROGRAM),
-        restOv: d.restOv && typeof d.restOv === "object" ? d.restOv : {},
-        exOv: d.exOv && typeof d.exOv === "object" ? d.exOv : {},
-      };
+      if (d.schema === 2 && (!d.program || Object.keys(DEFAULT_PROGRAM).some(k=>!d.program[k] || !Array.isArray(d.program[k].exs) || d.program[k].exs.some(id=>!LIB_MAP[id])))) throw Error('Invalid weekly program');
+      const next = migratePlan({...d,logs:d.logs.filter(l=>l&&LIB_MAP[l.exId]&&Array.isArray(l.sets))});
       persist(next); buzz(HAP.done);
       setVaultMode(null); setVaultText("");
       setVaultMsg(`RESTORED — ${next.logs.length} exercise logs loaded`);
@@ -169,7 +165,7 @@ export default function CyberTrain() {
   };
   const wipeData = () => {
     buzz(HAP.warn);
-    persist({ logs: [], program: clone(DEFAULT_PROGRAM), restOv: {}, exOv: {} });
+    persist(migratePlan());
     setVaultMode(null); setVaultMsg("SYSTEM WIPED — factory state restored");
     setTimeout(() => setVaultMsg(null), 6000);
   };
@@ -207,9 +203,11 @@ export default function CyberTrain() {
 
   const logs = data?.logs ?? [];
   const program = data?.program ?? DEFAULT_PROGRAM;
-  const restOv = data?.restOv ?? {};
-  const exOv = data?.exOv ?? {};
-  const EX = id => effEx(LIB_MAP[id], exOv);
+  const scope = tab==='BUILD'?editDay:(active?.day || day);
+  const restOv = data?.restOv?.[scope] ?? {};
+  const exOv = data?.exOv?.[scope] ?? {};
+  const baseEx = (id,key=scope) => ({...LIB_MAP[id],...program[key]?.rx?.[id]});
+  const EX = (id,key=scope) => (key===active?.day ? active.prescriptions?.[id] : null) || effEx(baseEx(id,key),data?.exOv?.[key]);
 
   /* ---- derived metrics ---- */
   const metrics = useMemo(() => {
@@ -221,7 +219,7 @@ export default function CyberTrain() {
       if (LIB_MAP[l.exId]?.unit === "sec") continue;
       totalVol += vol(l.sets);
       totalReps += l.sets.reduce((a, s) => a + s.r, 0);
-      if (LIB_MAP[l.exId]?.bw) continue;
+      if (LIB_MAP[l.exId]?.bw || LIB_MAP[l.exId]?.kind === 'POWER') continue;
       const best = Math.max(...l.sets.map(s => epley(s.w, s.r)), 0);
       if (!(l.exId in firstE1RM)) firstE1RM[l.exId] = best;
       if (best > (bestE1RM[l.exId] || 0)) { if (l.exId in bestE1RM) prs++; bestE1RM[l.exId] = best; }
@@ -233,21 +231,28 @@ export default function CyberTrain() {
   const exHistory = useCallback(exId => logs.filter(l => l.exId === exId), [logs]);
 
   /* ---- session flow ---- */
-  const startSession = () => { buzz(HAP.log); setActive({ day, started: Date.now(), id: "s" + Date.now(), entries: {} }); setOpenEx(program[day].exs[0]); };
+  const startSession = () => { buzz(HAP.log); setActive({day,date:selectedDate,exs:[...program[day].exs],prescriptions:Object.fromEntries(program[day].exs.map(id=>[id,EX(id)])),started:Date.now(),id:'s'+Date.now(),entries:{},swaps:{}});setOpenEx(program[day].exs[0]); };
+  const swapExercise = (from,to) => { if(!to||active.exs.includes(to))return; const origin=active.swaps[from]||from;setRest(null);setActive({...active,exs:active.exs.map(id=>id===from?to:id),swaps:{...active.swaps,[to]:origin},prescriptions:{...active.prescriptions,[to]:{...LIB_MAP[to],rest:EX(from).rest,group:EX(from).group}}});setOpenEx(to); };
 
-  const addSet = (exId, w, r, rir) => {
+  const addSet = (exId, w, r, rir, distance=null) => {
     if (!active || !Number.isFinite(w) || w < 0 || !Number.isInteger(r) || r <= 0 || (rir != null && (!Number.isFinite(rir) || rir < 0 || rir > 10))) return;
-    const entries = { ...active.entries, [exId]: [...(active.entries[exId] || []), { w: w || 0, r, rir }] };
+    if(distance!=null && (!Number.isFinite(distance)||distance<=0))return;
+    const entries = { ...active.entries, [exId]: [...(active.entries[exId] || []), { w: w || 0, r, rir, ...(distance!=null?{distance}:{}) }] };
     setActive({ ...active, entries });
     const ex = EX(exId);
     const newE = epley(w || 0, r);
-    const isPR = ex.unit !== "sec" && !ex.bw && newE > (metrics.bestE1RM[exId] || 0) && exHistory(exId).length > 0;
+    const isPR = ex.unit !== "sec" && !ex.bw && ex.kind !== 'POWER' && newE > (metrics.bestE1RM[exId] || 0) && exHistory(exId).length > 0;
     if (isPR) {
       setFlash(`◤ NEW PR // ${ex.name.toUpperCase()} — e1RM ${Math.round(newE)} LB ◢`);
       setTimeout(() => setFlash(null), 3000);
       buzz(HAP.pr);
     } else { buzz(HAP.log); }
-    startRest(ex); // auto-start recommended rest countdown
+    if(ex.group){
+      const pair=active.exs.filter(id=>EX(id).group===ex.group);
+      const round=entries[exId].length;
+      const next=pair.find(id=>(entries[id]?.length||0)<round);
+      if(next){setRest(null);setOpenEx(next);}else{startRest(ex);setOpenEx(pair[0]);}
+    }else startRest(ex);
   };
 
   const removeSet = (exId, idx) => {
@@ -261,8 +266,8 @@ export default function CyberTrain() {
     setRest(null);
     const newLogs = Object.entries(active.entries)
       .filter(([, sets]) => sets.length)
-      .map(([exId, sets]) => ({ exId, sets, ts: Date.now(), sessionId: active.id, day: active.day }));
-    if (newLogs.length) persist({ ...data, logs: [...logs, ...newLogs] });
+      .map(([exId, sets]) => ({ exId, sets, ts: Date.now(), sessionId: active.id, day: active.day, scheduledDate:active.date, prescription:EX(exId), substitutedFor:active.swaps[exId] }));
+    if (newLogs.length) persist({ ...data, logs: [...logs, ...newLogs], completed:[...data.completed,{date:active.date,template:active.day,sessionId:active.id}] });
     setActive(null); setOpenEx(null);
     setFlash("◤ SESSION ARCHIVED // " + newLogs.length + " EXERCISES SAVED ◢");
     setTimeout(() => setFlash(null), 3000);
@@ -276,18 +281,18 @@ export default function CyberTrain() {
   const addToDay = (k, exId) => { buzz(HAP.log); const p = clone(program); if (!p[k].exs.includes(exId)) p[k].exs.push(exId); updateProgram(p); };
   const removeFromDay = (k, exId) => { buzz(HAP.tap); const p = clone(program); p[k].exs = p[k].exs.filter(id => id !== exId); updateProgram(p); };
   const reorderDay = (k, newExs) => { const p = clone(program); p[k].exs = newExs; updateProgram(p); };
-  const resetDay = k => { buzz(HAP.warn); const p = clone(program); p[k] = clone(DEFAULT_PROGRAM[k]); updateProgram(p); };
+  const resetDay = k => { buzz(HAP.warn); const p = clone(program); p[k] = clone(DEFAULT_PROGRAM[k]); persist({...data,program:p,restOv:{...data.restOv,[k]:{}},exOv:{...data.exOv,[k]:{}}}); };
   const setExRest = (exId, sec) => {
     buzz(HAP.tap);
     const ov = { ...restOv };
-    const def = restOf(LIB_MAP[exId], null);
+    const def = restOf(baseEx(exId,editDay), null);
     const v = Math.max(15, Math.min(600, sec));
     if (v === def) delete ov[exId]; else ov[exId] = v;
-    persist({ ...data, restOv: ov });
+    persist({ ...data, restOv: {...data.restOv,[editDay]:ov} });
   };
   const setExTune = (exId, patch) => {
     buzz(HAP.tap);
-    const base = LIB_MAP[exId];
+    const base = baseEx(exId,editDay);
     const next = { ...(exOv[exId] || {}), ...patch };
     if (next.sets != null) next.sets = Math.max(1, Math.min(8, next.sets));
     if (next.lo != null) next.lo = Math.max(1, Math.min(60, next.lo));
@@ -299,9 +304,9 @@ export default function CyberTrain() {
     if (next.hi === base.range[1]) delete next.hi;
     const ov = { ...exOv };
     if (Object.keys(next).length) ov[exId] = next; else delete ov[exId];
-    persist({ ...data, exOv: ov });
+    persist({ ...data, exOv: {...data.exOv,[editDay]:ov} });
   };
-  const resetExTune = exId => { buzz(HAP.tap); const ov = { ...exOv }; delete ov[exId]; persist({ ...data, exOv: ov }); };
+  const resetExTune = exId => { buzz(HAP.tap); const ov = { ...exOv }; delete ov[exId]; persist({ ...data, exOv: {...data.exOv,[editDay]:ov} }); };
 
   if (!data) return (
     <div style={{ minHeight: "100vh", background: "#07080f", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Share Tech Mono',monospace", color: "#fcee0a" }}>
@@ -327,37 +332,23 @@ export default function CyberTrain() {
           <div className="brand-kicker">NIGHT CITY / STRENGTH SYSTEM</div>
           <h1>CYBER<span>TRAIN</span><em>EX</em></h1>
         </div>
-        <div className="app-signature"><i/>{active ? "LIVE" : "READY"}<span>V.04</span></div>
+        <div className="app-signature"><i/>{active ? "LIVE" : "READY"}<span>WEEKLY / 05</span></div>
       </header>
 
       <main className="main" ref={mainRef} id="main-content">
       <div className="tab-content" key={tab}>
         {/* ============ TRAIN ============ */}
         {tab === "TRAIN" && !active && (
-          <div className="pad">
-            <div className="session-heading"><div><div className="sec-label">YOUR TRAINING</div><h2>Choose your session.</h2></div><span>0{Object.keys(program).length}<small>PROTOCOLS</small></span></div>
-            {Object.entries(program).map(([k, p]) => (
-              <div key={k} className={"day-slot" + (day === k ? " selected" : "")} style={{"--dc":DAY_COLORS[k]}}><button aria-pressed={day === k} className={"day-card" + (day === k ? " sel" : "")} style={{ "--dc": DAY_COLORS[k] }} onClick={() => { buzz(HAP.tap); setDay(k); }}>
-                <div className="day-letter">{k}</div>
-                <div>
-                  <div className="day-name">{p.name}</div>
-                  <div className="day-meta">{p.exs.length} EXERCISES · {p.exs.map(id => LIB_MAP[id].mus).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4).join(" / ")}</div>
-                </div>
-                <div className="day-chev">{day === k ? "◉" : "○"}</div>
-              </button></div>
-            ))}
-            <button className="cta start-cta" style={{"--dc":DAY_COLORS[day]}} onClick={startSession} disabled={!program[day].exs.length}>▶ JACK IN — START DAY {day}</button>
-            <div className="hint">Targets load from your last session. Add a movement anytime from ARSENAL.</div>
-          </div>
+          <WeekHome data={data} program={program} selectedDate={selectedDate} setSelectedDate={setSelectedDate} day={day} setDay={setDay} onStart={startSession} onSave={persist}/>
         )}
 
         {tab === "TRAIN" && active && (
           <div className="pad">
             <div className="live-bar">
-              <span className="live-dot" />LIVE SESSION — DAY {active.day}
+              <span className="live-dot" />{program[active.day].name}
               <span className="live-vol">{fmtK(sessionVol)} LB</span>
             </div>
-            {program[active.day].exs.concat(Object.keys(active.entries).filter(id => !program[active.day].exs.includes(id))).map(exId => {
+            {active.exs.map(exId => {
               const ex = EX(exId);
               const sug = suggestNext(ex, logs);
               const done = active.entries[exId] || [];
@@ -377,6 +368,8 @@ export default function CyberTrain() {
                         <span className="sug-tag">{sug.status === "UP" ? "▲ PROGRESS" : sug.status === "DOWN" ? "▼ DELOAD" : sug.status === "INIT" ? "◆ NEW" : "▶ TARGET"}</span>
                         {sug.note}
                       </div>
+                      <div className="prescription">{ex.tempo&&<span>TEMPO {ex.tempo}</span>}{ex.rir&&<span>TARGET {ex.rir} RIR</span>}{ex.group&&<span>SUPERSET {ex.group} · REST AFTER PAIR</span>}{ex.note&&<p>{ex.note}</p>}</div>
+                      {SUBSTITUTES[active.swaps[exId]||exId]&&<label className="swap-label">SWAP EXERCISE<select aria-label={'Swap '+ex.name} value="" onChange={e=>swapExercise(exId,e.target.value)}><option value="">Choose a substitute…</option>{[active.swaps[exId]||exId,...SUBSTITUTES[active.swaps[exId]||exId]].filter(id=>id!==exId&&!active.exs.includes(id)).map(id=><option key={id} value={id}>{LIB_MAP[id].name}</option>)}</select><small>Logged sets stay in history; substitute loads use their own history.</small></label>}
                       <ExerciseGuide ex={ex}/><SetLogger ex={ex} sug={sug} done={done} onAdd={addSet} onRemove={removeSet} />
                       <button className="rest-start" onClick={() => { buzz(HAP.tap); startRest(ex); }}>⏱ START REST — {fmtClock(restOf(ex, restOv))}</button>
                     </div>
@@ -410,7 +403,7 @@ export default function CyberTrain() {
                     <ExerciseGuide ex={ex}/><div className="lib-next">{h.length ? `NEXT → ${sug.weight ?? "BW"}${sug.weight ? " lb" : ""} × ${sug.reps}` : "NO DATA YET"}</div>
                   </div>
                   {active && (
-                    <button className="lib-add" onClick={() => { navigate("TRAIN"); setOpenEx(ex.id); if (!active.entries[ex.id]) setActive({ ...active, entries: { ...active.entries, [ex.id]: [] } }); }}>+ ADD</button>
+                    <button className="lib-add" onClick={() => { navigate("TRAIN"); setOpenEx(ex.id); if (!active.exs.includes(ex.id)) setActive({ ...active, exs:[...active.exs,ex.id],prescriptions:{...active.prescriptions,[ex.id]:LIB_MAP[ex.id]}, entries: { ...active.entries, [ex.id]: active.entries[ex.id]||[] } }); }}>+ ADD</button>
                   )}
                 </div>
               );
@@ -431,7 +424,7 @@ export default function CyberTrain() {
             </div>
 
             <div className="sec-label" style={{ marginTop: 24 }}>// e1RM PROGRESSION</div>
-            <div className="hint">Volume uses logged load × repetitions, without doubling per-hand or per-side entries. Timed work is excluded from rep totals and volume. Bodyweight and timed exercises are excluded from e1RM estimates.</div>
+            <div className="hint">Volume uses logged load × repetitions, without doubling per-hand or per-side entries. Timed work is excluded from rep totals and volume. Bodyweight, power and timed exercises are excluded from e1RM estimates.</div>
             {Object.keys(metrics.bestE1RM).length === 0 && <div className="hint">Log sessions to unlock progression analytics. Estimated 1RM (Epley formula) is tracked per exercise from your best set each session.</div>}
             {Object.keys(metrics.bestE1RM).map(exId => {
               const ex = LIB_MAP[exId]; if (!ex) return null;
@@ -464,6 +457,8 @@ export default function CyberTrain() {
               );
             })}
 
+            <div className="sec-label" style={{ marginTop: 24 }}>// POWER · BODYWEIGHT · TIMED WORK</div>
+            {LIB.filter(ex=>(ex.kind==='POWER'||ex.bw||ex.unit==='sec')&&exHistory(ex.id).length).map(ex=><details className="mobility-panel" key={ex.id}><summary>{ex.name}</summary>{exHistory(ex.id).slice(-5).reverse().map((l,i)=><div className="week-note" key={l.sessionId||i}><strong>{fmtDate(l.ts)}</strong>{l.sets.map((s,j)=><div key={j}>S{j+1} · {s.w?`${s.w} lb × `:''}{s.r}{ex.unit==='sec'?'s':' reps'}{ex.perSide?' / side':''}{s.distance?` · Best ${s.distance} in`:''}</div>)}</div>)}</details>)}
             <div className="sec-label" style={{ marginTop: 28 }}>// DATA VAULT</div>
             <div className="hint" style={{ marginBottom: 10 }}>Completed sessions are saved on this device when you end and archive them. Keep this page open during an active session. Use the vault to back up your full history as text, or restore it after moving devices/accounts.</div>
             <div className="vault-btns">
@@ -502,14 +497,15 @@ export default function CyberTrain() {
             ))}</div>
             {Object.entries(program).map(([k, p]) => (
               <div key={k} style={{ marginTop: 24 }}>
-                <div className="sec-label" style={{ color: DAY_COLORS[k] }}>// DAY {k} — {p.name}</div>
+                <div className="sec-label" style={{ color: DAY_COLORS[k] }}>// {p.name}</div>
                 {p.exs.map(id => {
-                  const ex = EX(id);
+                  const ex = EX(id,k);
                   return <div key={id} className="plan-row"><span className="plan-n">{ex.name}</span><span className="plan-d">{ex.sets} × {ex.range[0]}–{ex.range[1]}{ex.unit === "sec" ? "s" : ""}</span></div>;
                 })}
               </div>
             ))}
-            <div className="hint" style={{ marginTop: 20 }}>Effort guide: compounds at 2 RIR, accessories 1–2 RIR, final isolation sets 0–1 RIR. Never grind compounds to failure. The progression engine assumes honest RIR.</div>
+            {data.legacy?.program&&<details className="mobility-panel"><summary>ARCHIVED A/B/C PLAN</summary>{Object.entries(data.legacy.program).map(([key,p])=><div key={key} className="week-note"><strong>{p.name}</strong><p>{p.exs.map(id=>LIB_MAP[id]?.name||id).join(' · ')}</p></div>)}</details>}
+            <div className="hint" style={{ marginTop: 20 }}>Progression is unchanged. Tempo and target RIR above are session notes; no automatic 12-week phase changes. Log actual RIR; follow the session-specific effort notes.</div>
           </div>
         )}
 
@@ -519,7 +515,7 @@ export default function CyberTrain() {
             <div className="sec-label">// CONFIGURE PROTOCOL</div>
             <div className="filter-row">
               {Object.keys(program).map(k => (
-                <button key={k} className={"chip" + (editDay === k ? " on" : "")} style={editDay === k ? { borderColor: DAY_COLORS[k], color: DAY_COLORS[k] } : {}} onClick={() => { buzz(HAP.tap); setEditDay(k); }}>DAY {k}</button>
+                <button key={k} className={"chip" + (editDay === k ? " on" : "")} style={editDay === k ? { borderColor: DAY_COLORS[k], color: DAY_COLORS[k] } : {}} onClick={() => { buzz(HAP.tap); setEditDay(k); }}>{program[k].name}</button>
               ))}
             </div>
 
@@ -529,6 +525,7 @@ export default function CyberTrain() {
             <div className="sec-label" style={{ marginTop: 18, color: DAY_COLORS[editDay] }}>// CURRENT — {program[editDay].exs.length} EXERCISES</div>
             {program[editDay].exs.length === 0 && <div className="hint">Empty. Add exercises from the arsenal below.</div>}
             <DragList
+              resolveExercise={id=>baseEx(id,editDay)}
               ids={program[editDay].exs}
               restOv={restOv}
               onRest={setExRest}
@@ -611,21 +608,22 @@ function SetLogger({ ex, sug, done, onAdd, onRemove }) {
   const [w, setW] = useState(sug.weight ?? "");
   const [r, setR] = useState(sug.reps ?? "");
   const [rir, setRir] = useState("");
+  const [distance,setDistance] = useState("");
   useEffect(() => { if (sug.weight != null && w === "") setW(sug.weight); }, [sug.weight]); // eslint-disable-line
   return (
     <div>
       {done.map((s, i) => (
         <div key={i} className="set-row">
           <span className="set-i">S{i + 1}</span>
-          <span className="set-v">{s.w || "BW"} {s.w ? "lb" : ""} × {s.r}{s.rir !== "" && s.rir != null ? ` @${s.rir}RIR` : ""}</span>
+          <span className="set-v">{s.w || "BW"} {s.w ? "lb" : ""} × {s.r}{ex.unit==='sec'?'s':''}{s.distance?` · BEST ${s.distance} in`:null}{s.rir !== "" && s.rir != null ? ` @${s.rir}RIR` : ""}</span>
           <button className="set-x" onClick={() => onRemove(ex.id, i)}>✕</button>
         </div>
       ))}
       <div className="set-input">
         <div className="si-field"><label>{ex.bw ? "+LB" : "LB"}</label><input type="number" inputMode="decimal" value={w} onChange={e => setW(e.target.value)} placeholder={ex.bw ? "0" : "—"} /></div>
         <div className="si-field"><label>{ex.unit === "sec" ? "SEC" : "REPS"}</label><input type="number" inputMode="numeric" value={r} onChange={e => setR(e.target.value)} placeholder={String(sug.reps)} /></div>
-        <div className="si-field"><label>RIR</label><input type="number" inputMode="numeric" value={rir} onChange={e => setRir(e.target.value)} placeholder="2" /></div>
-        <button className="si-add" onClick={() => { onAdd(ex.id, parseFloat(w) || 0, parseInt(r) || 0, rir === "" ? null : parseInt(rir)); }}>LOG ▸</button>
+        {ex.id==='broad-jump'?<div className="si-field"><label>BEST IN</label><input aria-label="Best jump distance in inches" type="number" inputMode="decimal" value={distance} onChange={e=>setDistance(e.target.value)}/></div>:<div className="si-field"><label>RIR</label><input type="number" inputMode="numeric" value={rir} onChange={e => setRir(e.target.value)} placeholder={ex.rir||'2'} /></div>}
+        <button className="si-add" onClick={() => { onAdd(ex.id, parseFloat(w) || 0, parseInt(r) || 0, rir === "" ? null : parseInt(rir), distance === "" ? null : Number(distance)); }}>LOG ▸</button>
       </div>
     </div>
   );
@@ -634,7 +632,7 @@ function SetLogger({ ex, sug, done, onAdd, onRemove }) {
 /* ---------- DRAG-TO-REORDER LIST ----------
    Pointer-based (works on touch + mouse). Grab the grip, drag;
    neighbours slide to open a gap; drop commits the new order. */
-function DragList({ ids, onReorder, onRemove, restOv, onRest, exOv, onTune, onResetTune }) {
+function DragList({ resolveExercise=id=>LIB_MAP[id], ids, onReorder, onRemove, restOv, onRest, exOv, onTune, onResetTune }) {
   const [list, setList] = useState(ids);
   const [drag, setDrag] = useState(null); // {from, delta, height, target, centers}
   const dragRef = useRef(null);
@@ -688,7 +686,7 @@ function DragList({ ids, onReorder, onRemove, restOv, onRest, exOv, onTune, onRe
   return (
     <div className="drag-wrap">
       {list.map((id, i) => {
-        const ex = effEx(LIB_MAP[id], exOv);
+        const ex = effEx(resolveExercise(id), exOv);
         const ov = (exOv && exOv[id]) || {};
         const tuned = ov.sets != null || ov.lo != null || ov.hi != null;
         const lifted = drag && drag.from === i;
@@ -718,7 +716,7 @@ function DragList({ ids, onReorder, onRemove, restOv, onRest, exOv, onTune, onRe
                   <TuneControl label={ex.unit === "sec" ? "MAX SEC" : "MAX REPS"} value={ex.range[1]} onLess={()=>onTune(id,{hi:ex.range[1]-1})} onMore={()=>onTune(id,{hi:ex.range[1]+1})}/>
                 </div>
                 {tuned && <button className="reset-tuning" onClick={()=>onResetTune(id)}>↺ RESET SETS / REPS</button>}
-                {restOv[id] != null && <button className="reset-tuning" style={{marginLeft:12}} onClick={()=>onRest(id,restOf(ex,null))}>↺ RESET REST</button>}
+                {restOv[id] != null && <button className="reset-tuning" style={{marginLeft:12}} onClick={()=>onRest(id,restOf(resolveExercise(id),null))}>↺ RESET REST</button>}
               </details>
             </div>
             <button className="build-rm" aria-label={"Remove " + ex.name} onClick={() => onRemove(id)}>✕</button>

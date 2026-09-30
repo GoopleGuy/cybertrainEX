@@ -1,0 +1,20 @@
+const make=(id,name,eq,mus,kind='ACCESSORY',perSide=false,unit='reps',bw=false,inc=5,cue='Follow the session prescription with a controlled setup.')=>({id,name,eq,mus,kind,perSide,unit,bw,inc,sets:3,range:unit==='sec'?[20,30]:[3,8],cue});
+export const PLAN_EXERCISES = [
+ make('broad-jump','Broad Jump','BODYWEIGHT','POWER','POWER',false,'reps',true,0,'Log repetitions and the best distance in inches for each set. Land under control.'),
+ make('copenhagen','Copenhagen Plank','BODYWEIGHT','CORE','CORE',true,'sec',true,0,'Use a stable bench for support; complete the hold on both sides.'),
+ make('db-snatch','Single-Arm DB Snatch','DUMBBELL','POWER','POWER',true,'reps',false,0),
+ make('db-push-press','DB Push Press','DUMBBELL','POWER','POWER',false,'reps',false,0),
+ make('pushup','Push-Up','BODYWEIGHT','CHEST','ACCESSORY',false,'reps',true,5),
+ make('wide-cable-row','Wide-Grip Cable Row','ARCADIA','BACK'),
+ make('trap-jump','Trap-Bar Jump','HEX','POWER','POWER',false,'reps',false,0),
+ make('pogo','Pogo Hops','BODYWEIGHT','POWER','POWER',false,'sec',true,0),
+ make('skater','Lateral Skater Bound','BODYWEIGHT','POWER','POWER',true,'reps',true,0),
+ make('balance-reach','Single-Leg Balance with Reach','BODYWEIGHT','CORE','CORE',true,'sec',true,0),
+ make('deadbug','Dead Bug','BODYWEIGHT','CORE','CORE',true,'reps',true,0),
+ make('tgu','Turkish Get-Up','DUMBBELL','CORE','ACCESSORY',true),
+ make('bear-crawl','Bear Crawl','BODYWEIGHT','CORE','CORE',false,'sec',true,0),
+ make('box-squat','Box Squat','RACK','QUADS','COMPOUND'),
+ make('ghr','Glute-Ham Raise','HYPER PRO','HAMS','ACCESSORY',false,'reps',true,0),
+ make('kneeling-db-press','Half-Kneeling Single-Arm DB Press','DUMBBELL','DELTS','ACCESSORY',true),
+ make('db-swing','DB Swing','DUMBBELL','POWER','POWER',false,'reps',false,0),
+];

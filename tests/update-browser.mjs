@@ -28,7 +28,7 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForFunction(() => navigator.serviceWorker.controller && window.testRevision === 1);
   await page.evaluate(() => localStorage.setItem('update-test-preserved', 'yes'));
-  await page.getByRole('button', {name:/JACK IN/}).click();
+  await page.getByRole('button',{name:'Monday',exact:true}).click();await page.getByRole('button', {name:/▶ START/}).click();
   revision = 2;
   await page.evaluate(async () => (await navigator.serviceWorker.ready).update());
   await page.locator('#app-update').waitFor();
@@ -46,7 +46,7 @@ try {
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.context().setOffline(true);
   await page.reload({waitUntil:'domcontentloaded'});
-  await page.getByRole('heading', {name:'Choose your session.'}).waitFor();
+  await page.getByRole('button',{name:'Monday',exact:true}).waitFor();
   assert.equal(await page.evaluate(() => window.testRevision), 3);
   assert.deepEqual(errors, []);
   console.log('Update checks passed: cached app update, active-session protection, refresh, preserved storage, fresh launch, offline reload.');
