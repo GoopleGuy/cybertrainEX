@@ -48,9 +48,11 @@ Targets are editable starting points, not individualized prescriptions. Use avai
 
 ## Develop and verify
 
-Node.js 20 or newer:
+Use Node.js 22.23.4 (the October 2026 security release), pinned in `.nvmrc`:
 
 ```sh
+nvm install
+nvm use
 npm ci
 npm test
 npm run build
