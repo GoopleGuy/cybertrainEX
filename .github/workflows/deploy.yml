@@ -4,10 +4,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: pages
@@ -15,6 +12,8 @@ concurrency:
 
 jobs:
   build:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -30,6 +29,9 @@ jobs:
           path: dist
 
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     if: vars.ENABLE_PAGES == 'true'
     needs: build
     runs-on: ubuntu-latest
